@@ -144,13 +144,13 @@ def compare_burgers2d():
     ).to(device)
     
     optimizer = torch.optim.Adam(fno.parameters(), lr=1e-3)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=150)
     mse_loss = nn.MSELoss()
     
-    print("Training FNO for 50 epochs...")
+    print("Training FNO for 150 epochs...")
     fno_losses = []
     
-    for epoch in range(50):
+    for epoch in range(150):
         fno.train()
         epoch_loss = 0
         for f, u in train_loader:
@@ -166,7 +166,7 @@ def compare_burgers2d():
         avg_loss = epoch_loss / len(train_loader)
         fno_losses.append(avg_loss)
         if (epoch+1) % 10 == 0:
-            print(f"Epoch {epoch+1}/50, Loss: {avg_loss:.6f}")
+            print(f"Epoch {epoch+1}/150, Loss: {avg_loss:.6f}")
             
     # 3. Train LRN
     print("\n--- Training LRN-FNO ---")
@@ -178,20 +178,21 @@ def compare_burgers2d():
         width=32,
         num_layers=4,
         latent_dim=64,
-        encoder_channels=[32, 64, 128]
+        encoder_channels=[32, 64, 128],
+        use_gated_bridge=True # Upgrade architecture
     ).to(device)
     
     loss_fn = LRNLoss(lambda_mse=1.0)
     
-    print("Training LRN-FNO (Curriculum: 10 + 25 + 15 = 50 epochs)...")
+    print("Training LRN-FNO (Curriculum: 30 + 80 + 40 = 150 epochs)...")
     trainer = LRNTrainer(
         model=lrn,
         train_loader=train_loader,
         test_loader=test_loader,
         loss_fn=loss_fn,
-        stage1_epochs=10,
-        stage2_epochs=25,
-        stage3_epochs=15,
+        stage1_epochs=30,
+        stage2_epochs=80,
+        stage3_epochs=40,
         device=str(device),
         checkpoint_dir='burgers2d_checkpoints'
     )

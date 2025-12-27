@@ -411,6 +411,80 @@ class LRNTrainer(Trainer):
         return self.history
 
 
+class LRNTrainerV2(LRNTrainer):
+    """
+    Version 2 Trainer for LRN-FNO with a simplified 2-stage curriculum.
+    
+    Stage 1: Combined Optimization (InfoNCE + MSE)
+        - Train all components: E_f, E_u, G_θ
+        - Loss: L_NCE + λ·L_MSE
+        - Purpose: Jointly learn the latent manifold and the solution mapping.
+    
+    Stage 2: Autonomous Distillation (MSE only)
+        - Discard E_u, train E_f, G_θ
+        - Loss: L_MSE only
+        - Purpose: Refine the forward model for inference.
+    """
+    
+    def __init__(
+        self,
+        model: nn.Module,
+        train_loader: DataLoader,
+        test_loader: DataLoader,
+        loss_fn: nn.Module,
+        stage1_epochs: int = 100,
+        stage2_epochs: int = 50,
+        stage1_lr: float = 1e-3,
+        stage2_lr: float = 1e-4,
+        device: str = 'cuda' if torch.cuda.is_available() else 'cpu',
+        checkpoint_dir: str = 'checkpoints_v2',
+        log_interval: int = 10,
+    ):
+        # We reuse the base LRNTrainer logic but only implement 2 stages.
+        # We map V2's Stage 1 -> Original Stage 2
+        # We map V2's Stage 2 -> Original Stage 3
+        super().__init__(
+            model=model,
+            train_loader=train_loader,
+            test_loader=test_loader,
+            loss_fn=loss_fn,
+            stage1_epochs=0, # Skip manifold-only alignment
+            stage2_epochs=stage1_epochs,
+            stage3_epochs=stage2_epochs,
+            stage2_lr=stage1_lr,
+            stage3_lr=stage2_lr,
+            device=device,
+            checkpoint_dir=checkpoint_dir,
+            log_interval=log_interval,
+        )
+
+    def train(self) -> Dict[str, List[float]]:
+        """
+        Execute simplified 2-stage training.
+        """
+        print("\n" + "="*60)
+        print("LATENT RECIPROCITY NETWORK - VERSION 2 (2-STAGE TRAINING)")
+        print("="*60)
+        
+        start_time = time.time()
+        
+        # Stage 1: Joint NCE + MSE
+        if self.stage2_epochs > 0:
+            print("Starting Stage 1: Combined Optimization (Joint Training)...")
+            self.train_stage(stage=2, epochs=self.stage2_epochs, lr=self.stage2_lr)
+        
+        # Stage 2: MSE Only (Distillation)
+        if self.stage3_epochs > 0:
+            print("Starting Stage 2: Autonomous Distillation (Fine-tuning)...")
+            self.train_stage(stage=3, epochs=self.stage3_epochs, lr=self.stage3_lr)
+        
+        elapsed_time = time.time() - start_time
+        print(f"\nTotal training time (V2): {elapsed_time/60:.2f} minutes")
+        
+        self.save_checkpoint(self.checkpoint_dir / 'final_model_v2.pt')
+        return self.history
+
+
 def count_parameters(model: nn.Module) -> int:
     """Count trainable parameters in model."""
     return sum(p.numel() for p in model.parameters() if p.requires_grad)

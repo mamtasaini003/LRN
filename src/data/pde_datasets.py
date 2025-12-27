@@ -463,8 +463,8 @@ class Burgers2dDataset(Dataset):
         self._generate_synthetic(100, self.resolution)
             
     def _generate_synthetic(self, num_samples: int, resolution: int):
-        """Generate synthetic 2D Fields (Linearized approximation for speed)."""
-        print(f"Generating {num_samples} synthetic 2D Burgers samples...")
+        """Generate synthetic 2D Fields using Finite Difference Time Stepping."""
+        print(f"Generating {num_samples} synthetic 2D Burgers samples (Non-Linear Physics)...")
         
         x = torch.linspace(0, 2*np.pi, resolution)
         y = torch.linspace(0, 2*np.pi, resolution)
@@ -473,48 +473,79 @@ class Burgers2dDataset(Dataset):
         f_list = [] # Input (t=0)
         u_list = [] # Output (t=T)
         
-        # Viscosity
+        # Physics parameters
         nu = 0.01
-        t = self.time_step
+        dt = 0.01
+        steps = int(self.time_step / dt)
+        dx = x[1] - x[0]
+        dy = y[1] - y[0]
         
-        for _ in range(num_samples):
-            # Generate random spectral coefficients
-            K = 6
-            coeffs_u = torch.randn(K, K) * 0.5
-            coeffs_v = torch.randn(K, K) * 0.5
+        for i in range(num_samples):
+            if (i+1) % 10 == 0:
+                print(f"Simulating sample {i+1}/{num_samples}...")
+                
+            # 1. Generate Random Initial Conditions (Spectral)
+            u = torch.zeros(resolution, resolution)
+            v = torch.zeros(resolution, resolution)
             
-            # Construct fields via Fourier sum
-            u0 = torch.zeros(resolution, resolution)
-            v0 = torch.zeros(resolution, resolution)
-            uT = torch.zeros(resolution, resolution)
-            vT = torch.zeros(resolution, resolution)
-            
+            K = 4 # Fewer modes for cleaner starting field
             for kx in range(K):
                 for ky in range(K):
-                    if kx == 0 and ky == 0: continue
-                    
+                    if kx==0 and ky==0: continue
+                    # Random phase and amplitude
                     phase_u = torch.rand(1) * 2 * np.pi
                     phase_v = torch.rand(1) * 2 * np.pi
+                    amp_u = torch.randn(1) * 0.5
+                    amp_v = torch.randn(1) * 0.5
                     
-                    # Wave vector
-                    k_sq = float(kx**2 + ky**2)
-                    decay = np.exp(-nu * k_sq * t)
-                    
-                    # Basis
                     basis = torch.sin(kx*X + ky*Y + phase_u)
-                    u0 += coeffs_u[kx, ky] * basis
-                    uT += coeffs_u[kx, ky] * decay * basis
-                    
+                    u += amp_u * basis
                     basis_v = torch.sin(kx*X + ky*Y + phase_v)
-                    v0 += coeffs_v[kx, ky] * basis_v
-                    vT += coeffs_v[kx, ky] * decay * basis_v
+                    v += amp_v * basis_v
             
-            # Stack channels: [2, H, W]
-            f = torch.stack([u0, v0])
-            u = torch.stack([uT, vT])
+            # Normalize to avoid instability
+            u = 0.5 * u / u.std()
+            v = 0.5 * v / v.std()
             
-            f_list.append(f)
-            u_list.append(u)
+            # Save Initial Condition
+            f_sample = torch.stack([u.clone(), v.clone()])
+            f_list.append(f_sample)
+            
+            # 2. Time Stepping (Finite Difference)
+            # du/dt = -u du/dx - v du/dy + nu del^2 u
+            
+            for _ in range(steps):
+                # Gradients (Periodic BCs via roll)
+                u_ip = torch.roll(u, -1, 0)
+                u_im = torch.roll(u, 1, 0)
+                u_jp = torch.roll(u, -1, 1)
+                u_jm = torch.roll(u, 1, 1)
+                
+                v_ip = torch.roll(v, -1, 0)
+                v_im = torch.roll(v, 1, 0)
+                v_jp = torch.roll(v, -1, 1)
+                v_jm = torch.roll(v, 1, 1)
+                
+                # First derivatives (Central Difference)
+                dudx = (u_ip - u_im) / (2*dx)
+                dudy = (u_jp - u_jm) / (2*dy)
+                dvdx = (v_ip - v_im) / (2*dx)
+                dvdy = (v_jp - v_jm) / (2*dy)
+                
+                # Laplacian (Central Difference)
+                lap_u = (u_ip - 2*u + u_im)/(dx**2) + (u_jp - 2*u + u_jm)/(dy**2)
+                lap_v = (v_ip - 2*v + v_im)/(dx**2) + (v_jp - 2*v + v_jm)/(dy**2)
+                
+                # Update
+                du_dt = -(u*dudx + v*dudy) + nu*lap_u
+                dv_dt = -(u*dvdx + v*dvdy) + nu*lap_v
+                
+                u = u + dt * du_dt
+                v = v + dt * dv_dt
+                
+            # Save Final State
+            u_sample = torch.stack([u, v])
+            u_list.append(u_sample)
             
         self.f = torch.stack(f_list)
         self.u = torch.stack(u_list)

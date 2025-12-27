@@ -145,8 +145,8 @@ def compare_navier_stokes():
     # 2. Train FNO
     print("\n--- Training Vanilla FNO ---")
     fno = FNO2d(
-        in_channels=T_IN,
-        out_channels=T_OUT,
+        in_channels=10,
+        out_channels=10,
         modes1=12,
         modes2=12,
         width=32,
@@ -154,23 +154,20 @@ def compare_navier_stokes():
     ).to(device)
     
     optimizer = torch.optim.Adam(fno.parameters(), lr=1e-3)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=150)
     mse_loss = nn.MSELoss()
     
-    print("Training FNO for 100 epochs...")
+    print("Training FNO for 150 epochs...")
     fno_losses = []
     
-    for epoch in range(100):
+    for epoch in range(150):
         fno.train()
         epoch_loss = 0
-        for u_in, u_out in train_loader:
-            u_in, u_out = u_in.to(device), u_out.to(device)
-            
+        for f, u in train_loader:
+            f, u = f.to(device), u.to(device)
             optimizer.zero_grad()
-            # FNO output: [B, Out, H, W] (already correct shape)
-            pred = fno(u_in) 
-            
-            loss = mse_loss(pred, u_out)
+            pred = fno(f) # [B, C, H, W]
+            loss = mse_loss(pred, u)
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
@@ -179,13 +176,13 @@ def compare_navier_stokes():
         avg_loss = epoch_loss / len(train_loader)
         fno_losses.append(avg_loss)
         if (epoch+1) % 10 == 0:
-            print(f"Epoch {epoch+1}/100, Loss: {avg_loss:.6f}")
+            print(f"Epoch {epoch+1}/150, Loss: {avg_loss:.6f}")
             
     # 3. Train LRN
     print("\n--- Training LRN-FNO ---")
     lrn = LRNFNO2d(
-        in_channels=T_IN,
-        out_channels=T_OUT,
+        in_channels=10,
+        out_channels=10,
         modes1=12,
         modes2=12,
         width=32,
@@ -196,15 +193,15 @@ def compare_navier_stokes():
     
     loss_fn = LRNLoss(lambda_mse=1.0)
     
-    print("Training LRN-FNO (Curriculum: 20 + 50 + 30 = 100 epochs)...")
+    print("Training LRN-FNO (Curriculum: 30 + 80 + 40 = 150 epochs)...")
     trainer = LRNTrainer(
         model=lrn,
         train_loader=train_loader,
         test_loader=test_loader,
         loss_fn=loss_fn,
-        stage1_epochs=20,
-        stage2_epochs=50,
-        stage3_epochs=30,
+        stage1_epochs=30,
+        stage2_epochs=80,
+        stage3_epochs=40,
         device=str(device),
         checkpoint_dir='ns_checkpoints'
     )

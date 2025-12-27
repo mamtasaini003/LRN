@@ -26,7 +26,7 @@ from pathlib import Path
 from src.models import LRNFNO1d, LRNFNO2d
 from src.losses import LRNLoss
 from src.data import create_dataloaders
-from src.utils import LRNTrainer, get_device, count_parameters
+from src.utils import LRNTrainer, LRNTrainerV2, get_device, count_parameters
 
 
 def set_seed(seed: int):
@@ -124,6 +124,8 @@ def main():
                         help='Device: auto, cuda, cpu, mps')
     parser.add_argument('--checkpoint_dir', type=str, default='checkpoints',
                         help='Checkpoint directory')
+    parser.add_argument('--v2', action='store_true',
+                        help='Use Version 2 training (2 stages)')
     
     args = parser.parse_args()
     
@@ -211,20 +213,36 @@ def main():
     
     # Create trainer
     training_config = config.get('training', {})
-    trainer = LRNTrainer(
-        model=model,
-        train_loader=train_loader,
-        test_loader=test_loader,
-        loss_fn=loss_fn,
-        stage1_epochs=training_config.get('stage1', {}).get('epochs', 50),
-        stage2_epochs=training_config.get('stage2', {}).get('epochs', 100),
-        stage3_epochs=training_config.get('stage3', {}).get('epochs', 50),
-        stage1_lr=training_config.get('stage1', {}).get('lr', 1e-3),
-        stage2_lr=training_config.get('stage2', {}).get('lr', 1e-3),
-        stage3_lr=training_config.get('stage3', {}).get('lr', 1e-4),
-        device=str(device),
-        checkpoint_dir=args.checkpoint_dir,
-    )
+    
+    if args.v2:
+        print("Using LRNTrainerV2 (2-stage protocol)")
+        trainer = LRNTrainerV2(
+            model=model,
+            train_loader=train_loader,
+            test_loader=test_loader,
+            loss_fn=loss_fn,
+            stage1_epochs=training_config.get('stage2', {}).get('epochs', 100),
+            stage2_epochs=training_config.get('stage3', {}).get('epochs', 50),
+            stage1_lr=training_config.get('stage2', {}).get('lr', 1e-3),
+            stage2_lr=training_config.get('stage3', {}).get('lr', 1e-4),
+            device=str(device),
+            checkpoint_dir=args.checkpoint_dir,
+        )
+    else:
+        trainer = LRNTrainer(
+            model=model,
+            train_loader=train_loader,
+            test_loader=test_loader,
+            loss_fn=loss_fn,
+            stage1_epochs=training_config.get('stage1', {}).get('epochs', 50),
+            stage2_epochs=training_config.get('stage2', {}).get('epochs', 100),
+            stage3_epochs=training_config.get('stage3', {}).get('epochs', 50),
+            stage1_lr=training_config.get('stage1', {}).get('lr', 1e-3),
+            stage2_lr=training_config.get('stage2', {}).get('lr', 1e-3),
+            stage3_lr=training_config.get('stage3', {}).get('lr', 1e-4),
+            device=str(device),
+            checkpoint_dir=args.checkpoint_dir,
+        )
     
     # Train!
     print("\nStarting training...")
