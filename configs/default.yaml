@@ -1,0 +1,91 @@
+# LRN-FNO Configuration
+# Latent Reciprocity Network with Fourier Neural Operator backbone
+
+# =============================================================================
+# Model Architecture
+# =============================================================================
+model:
+  # Architecture type
+  type: "lrn_fno"
+  spatial_dim: 1          # 1 for 1D PDEs (Burgers), 2 for 2D (Darcy, NS)
+  
+  # Input/Output
+  in_channels: 1
+  out_channels: 1
+  
+  # FNO Backbone (G_θ)
+  fno:
+    modes: 16             # Number of Fourier modes to keep
+    modes1: 12            # For 2D: modes in first dimension
+    modes2: 12            # For 2D: modes in second dimension
+    width: 64             # Hidden channel width
+    num_layers: 4         # Number of Fourier layers (K)
+    padding: 8            # Padding for non-periodic boundaries
+  
+  # Latent Space
+  latent:
+    dim: 64               # Latent space dimension (d_z)
+    encoder_channels: [32, 64, 128]  # CNN encoder channels
+    use_gated_bridge: false          # Use gated latent bridge
+
+# =============================================================================
+# Training Configuration
+# =============================================================================
+training:
+  # 3-Stage Curriculum Protocol
+  stage1:
+    epochs: 50            # Manifold alignment
+    lr: 0.001
+    description: "NCE only - train encoders E_f, E_u"
+  
+  stage2:
+    epochs: 100           # Hybrid optimization
+    lr: 0.001
+    description: "NCE + λ·MSE - train all components"
+  
+  stage3:
+    epochs: 50            # Autonomous distillation
+    lr: 0.0001
+    description: "MSE only - discard E_u, fine-tune"
+  
+  # General training
+  batch_size: 32
+  num_workers: 4
+  seed: 42
+
+# =============================================================================
+# Loss Configuration
+# =============================================================================
+loss:
+  lambda_mse: 1.0         # Weight for MSE loss (λ)
+  temperature: 0.1        # Temperature for InfoNCE (τ)
+  symmetric_nce: false    # Use symmetric InfoNCE loss
+
+# =============================================================================
+# Dataset Configuration
+# =============================================================================
+data:
+  dataset: "burgers"      # Options: burgers, darcy, navier_stokes
+  data_path: null         # Path to HDF5 file (null for synthetic)
+  resolution: 128         # Spatial resolution
+  sub_sampling: 1         # Subsampling factor
+  num_samples: 1000       # For synthetic data generation
+  train_ratio: 0.8
+
+# =============================================================================
+# Logging and Checkpoints
+# =============================================================================
+logging:
+  log_interval: 10        # Log every N batches
+  save_interval: 10       # Save checkpoint every N epochs
+  checkpoint_dir: "checkpoints"
+  tensorboard: true
+  wandb: false
+  project_name: "LRN-FNO"
+
+# =============================================================================
+# Hardware
+# =============================================================================
+hardware:
+  device: "auto"          # "auto", "cuda", "cpu", "mps"
+  mixed_precision: false  # Use automatic mixed precision
