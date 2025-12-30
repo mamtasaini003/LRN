@@ -463,7 +463,13 @@ class Burgers2dDataset(Dataset):
         self._generate_synthetic(100, self.resolution)
             
     def _generate_synthetic(self, num_samples: int, resolution: int):
-        """Generate synthetic 2D Fields using Finite Difference Time Stepping."""
+        """Generate synthetic 2D Fields using Finite Difference Time Stepping.
+        
+        Uses improved numerical stability with:
+        - Higher viscosity for stability
+        - Fewer time steps
+        - Gradient clipping to prevent blow-up
+        """
         print(f"Generating {num_samples} synthetic 2D Burgers samples (Non-Linear Physics)...")
         
         x = torch.linspace(0, 2*np.pi, resolution)
@@ -473,12 +479,14 @@ class Burgers2dDataset(Dataset):
         f_list = [] # Input (t=0)
         u_list = [] # Output (t=T)
         
-        # Physics parameters
-        nu = 0.01
-        dt = 0.01
-        steps = int(self.time_step / dt)
+        # Physics parameters - adjusted for numerical stability
         dx = x[1] - x[0]
         dy = y[1] - y[0]
+        
+        # CFL condition: dt <= dx^2 / (4*nu) for stability
+        nu = 0.05  # Increased viscosity for stability
+        dt = min(0.005, 0.25 * dx.item()**2 / nu)  # CFL-safe timestep
+        steps = min(50, int(self.time_step / dt))  # Limit steps
         
         for i in range(num_samples):
             if (i+1) % 10 == 0:
@@ -488,24 +496,24 @@ class Burgers2dDataset(Dataset):
             u = torch.zeros(resolution, resolution)
             v = torch.zeros(resolution, resolution)
             
-            K = 4 # Fewer modes for cleaner starting field
+            K = 3 # Fewer modes for cleaner starting field
             for kx in range(K):
                 for ky in range(K):
                     if kx==0 and ky==0: continue
                     # Random phase and amplitude
                     phase_u = torch.rand(1) * 2 * np.pi
                     phase_v = torch.rand(1) * 2 * np.pi
-                    amp_u = torch.randn(1) * 0.5
-                    amp_v = torch.randn(1) * 0.5
+                    amp_u = torch.randn(1) * 0.3  # Reduced amplitude
+                    amp_v = torch.randn(1) * 0.3
                     
                     basis = torch.sin(kx*X + ky*Y + phase_u)
                     u += amp_u * basis
                     basis_v = torch.sin(kx*X + ky*Y + phase_v)
                     v += amp_v * basis_v
             
-            # Normalize to avoid instability
-            u = 0.5 * u / u.std()
-            v = 0.5 * v / v.std()
+            # Normalize to small amplitude to avoid instability
+            u = 0.3 * u / (u.std() + 1e-8)
+            v = 0.3 * v / (v.std() + 1e-8)
             
             # Save Initial Condition
             f_sample = torch.stack([u.clone(), v.clone()])
@@ -514,7 +522,7 @@ class Burgers2dDataset(Dataset):
             # 2. Time Stepping (Finite Difference)
             # du/dt = -u du/dx - v du/dy + nu del^2 u
             
-            for _ in range(steps):
+            for step in range(steps):
                 # Gradients (Periodic BCs via roll)
                 u_ip = torch.roll(u, -1, 0)
                 u_im = torch.roll(u, 1, 0)
@@ -542,6 +550,10 @@ class Burgers2dDataset(Dataset):
                 
                 u = u + dt * du_dt
                 v = v + dt * dv_dt
+                
+                # Clamp values to prevent blow-up
+                u = torch.clamp(u, -10.0, 10.0)
+                v = torch.clamp(v, -10.0, 10.0)
                 
             # Save Final State
             u_sample = torch.stack([u, v])

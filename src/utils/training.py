@@ -168,12 +168,13 @@ class LRNTrainer(Trainer):
             for param in self.model.latent_bridge.parameters():
                 param.requires_grad = not freeze
     
-    def train_epoch(self, stage: int) -> Dict[str, float]:
+    def train_epoch(self, stage: int, display_stage: Optional[int] = None) -> Dict[str, float]:
         """
         Train for one epoch at specified stage.
         
         Args:
-            stage: Training stage (1, 2, or 3)
+            stage: Internal training stage (1, 2, or 3)
+            display_stage: Stage number to display in logs
             
         Returns:
             Dictionary of average losses
@@ -186,7 +187,8 @@ class LRNTrainer(Trainer):
         total_acc = 0.0
         num_batches = 0
         
-        pbar = tqdm(self.train_loader, desc=f'Stage {stage} Training')
+        d_stage = display_stage or stage
+        pbar = tqdm(self.train_loader, desc=f'Stage {d_stage} Training')
         
         for batch_idx, (f, u) in enumerate(pbar):
             f = f.to(self.device)
@@ -286,34 +288,49 @@ class LRNTrainer(Trainer):
         self, 
         stage: int, 
         epochs: int, 
-        lr: float
+        lr: float,
+        custom_header: Optional[str] = None,
+        display_stage: Optional[int] = None
     ) -> Dict[str, List[float]]:
         """
         Train for a complete stage.
         
         Args:
-            stage: Training stage (1, 2, or 3)
+            stage: Internal training stage (1, 2, or 3)
             epochs: Number of epochs for this stage
             lr: Learning rate for this stage
+            custom_header: Optional Custom header string to print
+            display_stage: Optional stage number to display
             
         Returns:
             Training history for this stage
         """
+        d_stage = display_stage or stage
         print(f"\n{'='*60}")
-        print(f"STAGE {stage}: ", end="")
+        if custom_header:
+            print(custom_header)
+        else:
+            print(f"STAGE {d_stage}: ", end="")
+            if stage == 1:
+                print("Manifold Alignment (NCE only)")
+            elif stage == 2:
+                print("Hybrid Optimization (NCE + MSE)")
+            else:
+                print("Autonomous Distillation (MSE only)")
+        
+        print(f"{'='*60}")
+        
         if stage == 1:
-            print("Manifold Alignment (NCE only)")
+            self.model.set_inference_mode(False) # Ensure encoders are active
             self._freeze_backbone(True)
             params = self._get_encoder_params()
         elif stage == 2:
-            print("Hybrid Optimization (NCE + MSE)")
+            self.model.set_inference_mode(False) # Ensure encoders are active
             self._freeze_backbone(False)
             params = self._get_all_params()
         else:
-            print("Autonomous Distillation (MSE only)")
             self.model.set_inference_mode(True)
             params = self._get_stage3_params()
-        print(f"{'='*60}")
         
         self.optimizer = Adam(params, lr=lr)
         self.scheduler = CosineAnnealingLR(self.optimizer, T_max=epochs)
@@ -329,7 +346,7 @@ class LRNTrainer(Trainer):
         
         for epoch in range(epochs):
             # Train
-            train_metrics = self.train_epoch(stage)
+            train_metrics = self.train_epoch(stage, display_stage=display_stage)
             
             # Evaluate
             test_metrics = self.evaluate(stage)
@@ -470,13 +487,13 @@ class LRNTrainerV2(LRNTrainer):
         
         # Stage 1: Joint NCE + MSE
         if self.stage2_epochs > 0:
-            print("Starting Stage 1: Combined Optimization (Joint Training)...")
-            self.train_stage(stage=2, epochs=self.stage2_epochs, lr=self.stage2_lr)
+            header = f"STAGE 1: Combined Optimization (NCE + MSE) [{self.stage2_epochs} epochs]"
+            self.train_stage(stage=2, epochs=self.stage2_epochs, lr=self.stage2_lr, custom_header=header, display_stage=1)
         
         # Stage 2: MSE Only (Distillation)
         if self.stage3_epochs > 0:
-            print("Starting Stage 2: Autonomous Distillation (Fine-tuning)...")
-            self.train_stage(stage=3, epochs=self.stage3_epochs, lr=self.stage3_lr)
+            header = f"STAGE 2: Autonomous Distillation (MSE only) [{self.stage3_epochs} epochs]"
+            self.train_stage(stage=3, epochs=self.stage3_epochs, lr=self.stage3_lr, custom_header=header, display_stage=2)
         
         elapsed_time = time.time() - start_time
         print(f"\nTotal training time (V2): {elapsed_time/60:.2f} minutes")
