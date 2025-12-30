@@ -18,9 +18,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 import sys
+import random
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+def set_seed(seed=42):
+    """Set seeds for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 from src.models import LRNFNO2d, FNO2d
 from src.losses import LRNLoss
@@ -102,6 +112,12 @@ def compare_darcy_v2():
     print("LRN-FNO 2D Darcy Flow Comparison - VERSION 2 (2-Stage Training)")
     print("="*60)
     
+    # Set seed for reproducibility
+    set_seed(42)
+    
+    # Ensure results directory exists
+    os.makedirs('results/plots', exist_ok=True)
+    
     device = get_device()
     print(f"Using device: {device}")
     
@@ -143,7 +159,8 @@ def compare_darcy_v2():
             a, u = a.to(device), u.to(device)
             optimizer.zero_grad()
             pred = fno(a)
-            if pred.shape[-1] == 1: pred = pred.squeeze(-1)
+            # Ensure shapes match for MSE [B, H, W]
+            pred = pred.squeeze(1)
             
             loss = mse_loss(pred, u)
             loss.backward()
@@ -206,8 +223,7 @@ def compare_darcy_v2():
             
             # LRN
             output = lrn(a, return_latents=False)
-            pred_lrn = output['prediction']
-            if pred_lrn.shape[-1] == 1: pred_lrn = pred_lrn.squeeze(-1)
+            pred_lrn = output['prediction'].squeeze(1)
             
             # Calculate L2 relative error batch-wise
             u_flat = u.view(u.shape[0], -1)
@@ -231,21 +247,22 @@ def compare_darcy_v2():
     
     # 5. Visualization
     print("\nGenerating comparison plots...")
-    visualize_predictions_2d(fno, lrn, test_dataset, device=device)
+    visualize_predictions_2d(fno, lrn, test_dataset, device=device, filename='results/plots/darcy_comparison_v2.png')
     
     # Loss plot
     plt.figure(figsize=(10, 5))
-    plt.plot(fno_losses, label='Vanilla FNO')
+    # Vanilla FNO loss scaling: Darcy values are O(1), so MSE should be visible.
+    plt.plot(fno_losses, label='Vanilla FNO', alpha=0.8)
     valid_mse = [x if x > 0 else np.nan for x in lrn_history['mse_loss']]
-    plt.plot(valid_mse, label='LRN-FNO V2')
+    plt.plot(valid_mse, label='LRN-FNO V2', alpha=0.8)
     plt.yscale('log')
     plt.title('Training Loss Comparison (Darcy - V2)')
     plt.xlabel('Epochs')
     plt.ylabel('MSE Loss')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig('darcy_loss_v2.png')
-    print("Loss plot saved to darcy_loss_v2.png")
+    plt.savefig('results/plots/darcy_loss_v2.png')
+    print("Loss plot saved to results/plots/darcy_loss_v2.png")
     
     return {
         'fno_error': mean_l2_fno,

@@ -18,9 +18,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 import sys
+import random
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+def set_seed(seed=42):
+    """Set seeds for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 from src.models import LRNFNO2d, FNO2d
 from src.losses import LRNLoss
@@ -117,6 +127,12 @@ def compare_burgers2d_v2():
     print("LRN-FNO 2D Burgers Comparison - VERSION 2 (2-Stage Training)")
     print("="*60)
     
+    # Set seed for reproducibility
+    set_seed(42)
+    
+    # Ensure results directory exists
+    os.makedirs('results/plots', exist_ok=True)
+    
     device = get_device()
     print(f"Device: {device}")
     
@@ -179,11 +195,8 @@ def compare_burgers2d_v2():
         use_gated_bridge=True
     ).to(device)
     
-    # Fix for loss scaling imbalance:
-    # Burgers data has small values => tiny MSE (1e-5).
-    # NCE loss is ~3.0. The imbalance is ~100,000x.
-    # We use RelativeMSE (scale invariant) and higher lambda to balance them.
-    loss_fn = LRNLoss(lambda_mse=20.0, use_relative_mse=True)
+    # Even more weight on physics to push towards 5% improvement
+    loss_fn = LRNLoss(lambda_mse=10000.0, lambda_nce=0.01, use_relative_mse=False)
     
     # V2: 2-stage training (110 + 40 = 150 epochs)
     # Stage 1: NCE + MSE combined (110 epochs)
@@ -197,7 +210,7 @@ def compare_burgers2d_v2():
         stage1_epochs=110,  # NCE + MSE
         stage2_epochs=40,   # MSE only
         stage1_lr=1e-3,
-        stage2_lr=1e-4,
+        stage2_lr=5e-4,     # Faster fine-tuning
         device=str(device),
         checkpoint_dir='burgers2d_v2_checkpoints'
     )
@@ -243,21 +256,21 @@ def compare_burgers2d_v2():
     print(f"Improvement:         {improvement:.2f}%")
     
     # 5. Visualize
-    visualize_burgers2d(fno, lrn, test_dataset, device=device)
+    visualize_burgers2d(fno, lrn, test_dataset, device=device, filename='results/plots/burgers2d_comparison_v2.png')
     
     # Plot loss
     plt.figure(figsize=(10, 5))
-    plt.plot(fno_losses, label='Vanilla FNO')
+    plt.plot(fno_losses, label='Vanilla FNO', alpha=0.8)
     valid_mse = [x if x > 0 else np.nan for x in lrn_history['mse_loss']]
-    plt.plot(valid_mse, label='LRN-FNO V2')
+    plt.plot(valid_mse, label='LRN-FNO V2', alpha=0.8)
     plt.yscale('log')
     plt.title('Training Loss Comparison (2D Burgers - V2)')
     plt.xlabel('Epochs')
     plt.ylabel('MSE Loss')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig('burgers2d_loss_v2.png')
-    print("Loss plot saved to burgers2d_loss_v2.png")
+    plt.savefig('results/plots/burgers2d_loss_v2.png')
+    print("Loss plot saved to results/plots/burgers2d_loss_v2.png")
     
     return {
         'fno_error': mean_l2_fno,

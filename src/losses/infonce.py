@@ -144,19 +144,22 @@ class LRNLoss(nn.Module):
     def __init__(
         self,
         lambda_mse: float = 1.0,
+        lambda_nce: float = 1.0,
         temperature: float = 0.1,
         symmetric_nce: bool = False,
         use_relative_mse: bool = False,
     ):
         """
         Args:
-            lambda_mse: Weight for MSE loss (λ)
+            lambda_mse: Weight for MSE loss (λ_mse)
+            lambda_nce: Weight for InfoNCE loss (λ_nce)
             temperature: Temperature for InfoNCE (τ)
             symmetric_nce: Use symmetric InfoNCE loss
             use_relative_mse: Use Relative MSE instead of standard MSE
         """
         super().__init__()
         self.lambda_mse = lambda_mse
+        self.lambda_nce = lambda_nce
         
         if symmetric_nce:
             self.nce_loss = SymmetricInfoNCELoss(temperature)
@@ -206,7 +209,7 @@ class LRNLoss(nn.Module):
         if compute_nce:
             nce = self.nce_loss(z_f, z_u)
             losses['nce'] = nce
-            total = total + nce
+            total = total + self.lambda_nce * nce
             
             # Compute accuracy for monitoring
             accuracy = self.nce_loss.compute_accuracy(z_f, z_u)

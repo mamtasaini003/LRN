@@ -18,9 +18,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 import sys
+import random
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+def set_seed(seed=42):
+    """Set seeds for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 from src.models import LRNFNO2d, FNO2d
 from src.losses import LRNLoss
@@ -101,6 +111,12 @@ def compare_navier_stokes_v2():
     print("="*60)
     print("LRN-FNO Navier-Stokes Comparison - VERSION 2 (2-Stage Training)")
     print("="*60)
+    
+    # Set seed for reproducibility
+    set_seed(42)
+    
+    # Ensure results directory exists
+    os.makedirs('results/plots', exist_ok=True)
     
     device = get_device()
     print(f"Device: {device}")
@@ -240,21 +256,21 @@ def compare_navier_stokes_v2():
     
     # 4. Visualization
     print("\nGenerating visualizations...")
-    visualize_ns_predictions(fno, lrn, test_dataset, device=device)
+    visualize_ns_predictions(fno, lrn, test_dataset, device=device, filename='results/plots/ns_comparison_v2.png')
     
     # Loss plot
     plt.figure(figsize=(10, 5))
-    plt.plot(fno_losses, label='Vanilla FNO')
+    plt.plot(fno_losses, label='Vanilla FNO', alpha=0.8)
     valid_mse = [x if x > 0 else np.nan for x in lrn_history['mse_loss']]
-    plt.plot(valid_mse, label='LRN-FNO V2')
+    plt.plot(valid_mse, label='LRN-FNO V2', alpha=0.8)
     plt.yscale('log')
     plt.title('Training Loss Comparison (Navier-Stokes - V2)')
     plt.xlabel('Epochs')
     plt.ylabel('MSE Loss')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig('ns_loss_v2.png')
-    print("Loss plot saved to ns_loss_v2.png")
+    plt.savefig('results/plots/ns_loss_v2.png')
+    print("Loss plot saved to results/plots/ns_loss_v2.png")
     
     return {
         'fno_error': mean_l2_fno,

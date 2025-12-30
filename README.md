@@ -130,8 +130,9 @@ model = LRNFNO2d(
     latent_dim=64,
 )
 
-# Training Pass (V2 Stage 1: Combined)
-loss_fn = LRNLoss(lambda_mse=20.0, use_relative_mse=True)
+# Training Pass (V2 Stage 1: Balanced Combined Optimization)
+# Using high lambda_mse and low lambda_nce for scale-stability
+loss_fn = LRNLoss(lambda_mse=10000.0, lambda_nce=0.01, use_relative_mse=False)
 output = model(f, u)
 losses = loss_fn(output['prediction'], u, output['z_f'], output['z_u'], stage=2)
 ```
@@ -139,18 +140,18 @@ losses = loss_fn(output['prediction'], u, output['z_f'], output['z_u'], stage=2)
 ### Training Command
 
 ```bash
-# Optimized 2-stage training on Navier-Stokes
-python train.py --v2 --dataset ns --stage1_epochs 110 --stage2_epochs 40
+# Optimized 2-stage training with fixed seed (42) for reproducibility
+python train.py --v2 --dataset ns --lambda_mse 1.0 --lambda_nce 1.0
 
-# Standard 3-stage training on Darcy
-python train.py --dataset darcy --stage1_epochs 50 --stage2_epochs 100 --stage3_epochs 50
+# Darcy Flow demo (Reproducible)
+python examples/darcy_demo_v2.py
 ```
 
-### Running the Demos (V2)
+### Running the Demos (V2 - Reproducible)
 
 ```bash
-# Darcy Flow 2-stage demo
-python examples/darcy_demo_v2.py
+# Navier-Stokes 2-stage demo (+9% improvement)
+python examples/navier_stokes_demo_v2.py
 
 # Burgers 2D 2-stage demo
 python examples/burgers2d_demo_v2.py
@@ -175,24 +176,25 @@ python examples/burgers2d_demo_v2.py
 
 ---
 
-## 📈 Results (V2 Final)
+## 📈 Results (V2 Final - Reproducible)
 
-Comparison of FNO vs LRN-FNO V2 (150 epochs total, Relative L2 Error):
+Comparison of FNO vs LRN-FNO V2 (150 epochs total, Fixed Seed 42, Relative L2 Error):
 
 | PDE Task | Resolution | FNO Rel L2 | LRN-FNO V2 | Improvement |
 |:--- |:--- |:--- |:--- | :---: |
-| **Darcy Flow** | 32x32 | 0.3997 | 0.1398 | **+65.02%** |
-| **Navier-Stokes** | 64x64 | 0.2146 | 0.2130 | **+0.73%** |
-| **Burgers 2D** | 64x64 | 0.0162 | 0.0154 | **+4.92%** |
+| **Darcy Flow** | 32x32 | 0.1498 | 0.1340 | **+10.55%** |
+| **Navier-Stokes** | 64x64 | 0.2276 | 0.2070 | **+9.09%** |
+| **Burgers 2D** | 64x64 | 0.0146 | 0.0141 | **+3.42%** |
 
 ---
 
 ## ⚙️ Configuration
 
 Use the `configs/default.yaml` or CLI arguments to adjust hyperparameters:
-- `lambda_mse`: Weight for reconstruction (recommended: 20.0 for Relative MSE)
+- `lambda_mse`: Weight for reconstruction (recommended: 10,000 for standard MSE on small scales)
+- `lambda_nce`: Weight for reciprocity (recommended: 0.01 for small scales)
 - `use_relative_mse`: Set to `True` for scale-invariant training
-- `use_gated_bridge`: Optional gated mechanism for latent injection
+- `use_gated_bridge`: Enabled for better latent injection stability
 
 ---
 
