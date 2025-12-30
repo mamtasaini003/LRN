@@ -20,8 +20,8 @@
 
 - **Bidirectional Latent Alignment**: Dual encoders $E_f$ and $E_u$ map inputs and solutions to a shared latent space
 - **InfoNCE Contrastive Loss**: Enforces reciprocity for matched (f, u) pairs while distinguishing mismatches
-- **Latent Bridge Injection**: Conditions backbone features on latent codes for physically-constrained predictions
-- **3-Stage Curriculum Training**: Progressive learning from manifold alignment → hybrid optimization → distillation
+- **Scale-Invariant Optimization**: Incorporates **Relative MSE** loss to handle varied PDE magnitudes
+- **Optimized 2-Stage Training**: Simplified protocol (Joint Training → Fine-tuning) for faster and more stable convergence
 
 ---
 
@@ -89,16 +89,22 @@ LRN/
 │   │   ├── latent_bridge.py    # Latent injection module
 │   │   └── lrn_fno.py          # Complete LRN-FNO model
 │   ├── losses/
-│   │   └── infonce.py          # InfoNCE contrastive loss
+│   │   └── infonce.py          # InfoNCE and RelativeMSE losses
 │   ├── data/
 │   │   └── pde_datasets.py     # Burgers, Darcy, Navier-Stokes datasets
 │   └── utils/
-│       └── training.py         # 3-stage curriculum trainer
+│       └── training.py         # 3-stage and 2-stage trainers
+├── checkpoints/                # Model checkpoints organized by task
+├── results/
+│   ├── plots/                  # Visualizations and loss curves
+│   └── logs/                   # Training logs
 ├── configs/
 │   └── default.yaml            # Hyperparameter configuration
 ├── examples/
-│   └── burgers_demo.py         # Burgers equation demo
-├── train.py                    # Main training script
+│   ├── burgers2d_demo_v2.py    # 2-stage demo for Burgers
+│   ├── darcy_demo_v2.py        # 2-stage demo for Darcy
+│   └── navier_stokes_demo_v2.py # 2-stage demo for Navier-Stokes
+├── train.py                    # Main training script (supports --v2)
 ├── requirements.txt
 └── README.md
 ```
@@ -107,125 +113,96 @@ LRN/
 
 ## 💻 Usage
 
-### Quick Start
+### Quick Start (2-Stage V2)
 
 ```python
 import torch
-from src.models import LRNFNO1d
+from src.models import LRNFNO2d
 from src.losses import LRNLoss
 
-# Create LRN-FNO model for 1D PDEs
-model = LRNFNO1d(
+# Create LRN-FNO model for 2D Darcy Flow
+model = LRNFNO2d(
     in_channels=1,
     out_channels=1,
-    modes=16,           # Fourier modes
-    width=64,           # Hidden channels
-    num_layers=4,       # FNO layers (K)
-    latent_dim=64,      # Latent space dimension (d_z)
+    modes1=12,
+    modes2=12,
+    width=32,
+    latent_dim=64,
 )
 
-# Forward pass
-f = torch.randn(8, 128)  # Input field [batch, spatial]
-u = torch.randn(8, 128)  # Solution (for training)
-
-output = model(f, u, return_latents=True)
-prediction = output['prediction']  # Predicted solution
-z_f = output['z_f']                # Forward latent
-z_u = output['z_u']                # Reverse latent
-
-# Compute loss
-loss_fn = LRNLoss(lambda_mse=1.0, temperature=0.1)
-losses = loss_fn(prediction, u, z_f, z_u, stage=2)
-total_loss = losses['total']
+# Training Pass (V2 Stage 1: Combined)
+loss_fn = LRNLoss(lambda_mse=20.0, use_relative_mse=True)
+output = model(f, u)
+losses = loss_fn(output['prediction'], u, output['z_f'], output['z_u'], stage=2)
 ```
 
-### Training with 3-Stage Curriculum
+### Training Command
 
 ```bash
-# Full training with default config
-python train.py --config configs/default.yaml
+# Optimized 2-stage training on Navier-Stokes
+python train.py --v2 --dataset ns --stage1_epochs 110 --stage2_epochs 40
 
-# Quick training on Burgers equation
-python train.py --dataset burgers --stage1_epochs 20 --stage2_epochs 50 --stage3_epochs 20
-
-# Training on 2D Darcy flow
-python train.py --dataset darcy --resolution 64 --batch_size 16
+# Standard 3-stage training on Darcy
+python train.py --dataset darcy --stage1_epochs 50 --stage2_epochs 100 --stage3_epochs 50
 ```
 
-### Running the Demo
+### Running the Demos (V2)
 
 ```bash
-# Quick demonstration
-python examples/burgers_demo.py --mode demo
+# Darcy Flow 2-stage demo
+python examples/darcy_demo_v2.py
 
-# Compare LRN-FNO vs vanilla FNO
-python examples/burgers_demo.py --mode compare
+# Burgers 2D 2-stage demo
+python examples/burgers2d_demo_v2.py
 ```
 
 ---
 
-## 📊 Training Protocol
+## 📊 Training Protocols
 
-LRN employs a **3-stage curriculum learning** protocol:
+### 2-Stage Protocol (V2 - Recommended)
+| Stage | Description | Loss |
+|:---|:---|:---|
+| **I** | Combined Optimization | $\mathcal{L}_{NCE} + \lambda \mathcal{L}_{RelMSE}$ |
+| **II** | Autonomous Distillation | $\mathcal{L}_{RelMSE}$ |
 
-| Stage | Components | Loss | Purpose |
-|-------|-----------|------|---------|
-| **I** | $E_f$, $E_u$ | $\mathcal{L}_{NCE}$ | Manifold alignment |
-| **II** | $E_f$, $E_u$, $G_\theta$ | $\mathcal{L}_{NCE} + \lambda \mathcal{L}_{MSE}$ | Hybrid optimization |
-| **III** | $E_f$, $G_\theta$ | $\mathcal{L}_{MSE}$ | Autonomous distillation |
-
-**InfoNCE Loss:**
-$$\mathcal{L}_{NCE} = -\sum_i \log \frac{\exp(\text{sim}(z_{f,i}, z_{u,i})/\tau)}{\sum_j \exp(\text{sim}(z_{f,i}, z_{u,j})/\tau)}$$
+### 3-Stage Curriculum (V1)
+| Stage | Description | Loss |
+|:---|:---|:---|
+| **I** | Manifold Alignment | $\mathcal{L}_{NCE}$ |
+| **II** | Hybrid Optimization | $\mathcal{L}_{NCE} + \lambda \mathcal{L}_{MSE}$ |
+| **III** | Autonomous Distillation | $\mathcal{L}_{MSE}$ |
 
 ---
 
-## 📈 Results
+## 📈 Results (V2 Final)
 
-Comparison of FNO vs LRN-FNO on benchmark PDEs:
+Comparison of FNO vs LRN-FNO V2 (150 epochs total, Relative L2 Error):
 
-| PDE | Resolution | FNO MSE | LRN-FNO MSE | Improvement |
-|-----|------------|---------|-------------|-------------|
-| Burgers | 16 | 0.003394 | 0.002929 | **-13.70%** |
-| Darcy | 16 | 0.142206 | 0.126364 | **-11.14%** |
-| Darcy | 32 | 0.188096 | 0.176746 | **-6.03%** |
-| Navier-Stokes | 128 | 0.012740 | 0.010340 | **-18.84%** |
+| PDE Task | Resolution | FNO Rel L2 | LRN-FNO V2 | Improvement |
+|:--- |:--- |:--- |:--- | :---: |
+| **Darcy Flow** | 32x32 | 0.3997 | 0.1398 | **+65.02%** |
+| **Navier-Stokes** | 64x64 | 0.2146 | 0.2130 | **+0.73%** |
+| **Burgers 2D** | 64x64 | 0.0162 | 0.0154 | **+4.92%** |
 
 ---
 
 ## ⚙️ Configuration
 
-Edit `configs/default.yaml` to customize:
-
-```yaml
-model:
-  latent_dim: 64          # Latent space dimension
-  fno:
-    modes: 16             # Fourier modes
-    width: 64             # Hidden channels
-    num_layers: 4         # Number of FNO layers
-
-training:
-  stage1:
-    epochs: 50            # Manifold alignment epochs
-  stage2:
-    epochs: 100           # Hybrid optimization epochs
-  stage3:
-    epochs: 50            # Distillation epochs
-
-loss:
-  lambda_mse: 1.0         # MSE weight (λ)
-  temperature: 0.1        # InfoNCE temperature (τ)
-```
+Use the `configs/default.yaml` or CLI arguments to adjust hyperparameters:
+- `lambda_mse`: Weight for reconstruction (recommended: 20.0 for Relative MSE)
+- `use_relative_mse`: Set to `True` for scale-invariant training
+- `use_gated_bridge`: Optional gated mechanism for latent injection
 
 ---
 
 ## 📝 Citation
 
 ```bibtex
-@misc{lrn2024,
+@misc{lrn2025,
   title={Latent Reciprocity Network: A Bidirectional Latent-Space Alignment for Solution Operators},
   author={Saini, Mamta},
-  year={2024},
+  year={2025},
   howpublished={\url{https://github.com/mamtasaini003/LRN}}
 }
 ```
