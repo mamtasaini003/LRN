@@ -1,6 +1,6 @@
 # Final Performance Report: LRN-FNO V2 (Reproducible Edition)
 
-**Date:** December 30, 2025  
+**Date:** December 30, 2025  (last updated: January 13, 2026)
 **Framework:** Latent Reciprocity Network (LRN-FNO)  
 **Protocol:** 2-Stage Training (Optimized Joint Training → Fine-tuning)  
 **Reproducibility:** Fixed Seed (42) for Data Generation and Weight Initialization
@@ -53,7 +53,45 @@ We identified that implicit broadcasting in `MSELoss` was causing the FNO baseli
 
 ---
 
-## 4. Conclusion
+## 4. Visual Comparison Analysis
+
+The combined comparison plot below shows side-by-side predictions from both models (Vanilla FNO and LRN-FNO) against the ground truth solutions for all three PDE benchmarks.
+
+![Combined Comparison Plot](../results/plots/combined_comparison_v2.png)
+
+### Figure Analysis
+
+#### A. Burgers 2D Equation (Top Panel)
+- **Ground Truth:** Shows the characteristic smooth velocity field with gradients that form the Burgers dynamics.
+- **Vanilla FNO:** Produces a visually acceptable approximation but exhibits slight smoothing in high-gradient regions.
+- **LRN-FNO:** Captures sharper transitions and maintains better fidelity in the velocity gradients, resulting in a **3.42% improvement** in relative L2 error (0.0146 → 0.0141).
+- **Key Insight:** The reciprocity constraint helps preserve fine-scale structures even when the overall error is already quite low.
+
+#### B. Darcy Flow (Middle Panel)
+- **Ground Truth:** Displays the pressure field arising from permeability variations—features clear spatial heterogeneity.
+- **Vanilla FNO:** Shows noticeable deviation in regions with rapid permeability transitions; some spatial features are blurred.
+- **LRN-FNO:** Significantly better reconstruction of the heterogeneous pressure distribution. The bidirectional latent constraint ($\hat{z}_f \leftrightarrow z_u$) provides a **10.55% improvement** in accuracy.
+- **Key Insight:** This is the strongest validation of the LRN framework—the latent space alignment enforces physical consistency that vanilla spectral methods miss.
+
+#### C. Navier-Stokes (Bottom Panel)
+- **Ground Truth:** Exhibits complex vortex structures and turbulent mixing patterns typical of fluid dynamics.
+- **Vanilla FNO:** Tends to over-diffuse the solution, losing some of the fine vortex details and introducing numerical smoothing artifacts.
+- **LRN-FNO:** Preserves vortex coherence and captures the turbulent dynamics more faithfully, delivering a **9.09% improvement** in relative L2 error.
+- **Key Insight:** The reciprocity inductive bias acts as a physics-informed regularizer, preventing the over-diffusion commonly seen in purely data-driven approaches.
+
+### Summary of Visual Findings
+
+| PDE Task | Vanilla FNO Weakness | LRN-FNO Advantage |
+| :--- | :--- | :--- |
+| **Burgers 2D** | Minor gradient smoothing | Sharper velocity transitions |
+| **Darcy Flow** | Blurred heterogeneity boundaries | Accurate pressure reconstruction |
+| **Navier-Stokes** | Over-diffusion of vortices | Coherent turbulent structures |
+
+The visual comparison confirms that LRN-FNO not only achieves lower numerical errors but also produces **qualitatively superior predictions** with better preservation of physical structures across all tested regimes.
+
+---
+
+## 5. Conclusion
 
 The LRN-FNO framework is now fully mature and ready for deployment. It demonstrates that **Reciprocity-based Regularization** is more than just a theoretical concept—it is a practical tool for improving the accuracy and generalization of Neural Operators in fluid dynamics and beyond.
 
@@ -62,3 +100,5 @@ The LRN-FNO framework is now fully mature and ready for deployment. It demonstra
 - **Balanced Loss:** `src/losses/infonce.py` (`LRNLoss` with `lambda_nce`)
 - **Trainer:** `src/utils/training.py` (`LRNTrainerV2`)
 - **Stable Dataset:** `src/data/pde_datasets.py` (`CFL condition enforced`)
+- **Visual Comparison:** `results/plots/combined_comparison_v2.png`
+- **Plot Generation Script:** `scripts/combine_comparison_plots.py`

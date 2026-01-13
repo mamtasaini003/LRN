@@ -241,9 +241,9 @@ ehthumbs_vista.db
 
 # Experiment outputs
 outputs/
-results/
+# results/
 figures/
-plots/
+# plots/
 
 # Cache directories
 .cache/
