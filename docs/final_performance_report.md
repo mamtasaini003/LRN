@@ -19,7 +19,57 @@ This report documents the final verified performance of LRN-FNO. By implementing
 
 ---
 
-## 2. Definitive Architectural Improvements
+## 2. Experimental Setup
+
+### Hardware Configuration
+| Component | Specification |
+| :--- | :--- |
+| **GPU** | 2× NVIDIA RTX A6000 (48 GB VRAM each) |
+| **Total GPU Memory** | 96 GB |
+| **CUDA Version** | Compatible with PyTorch 2.x |
+
+### Model Architecture (FNO / LRN-FNO)
+
+| Hyperparameter | Burgers 2D | Darcy Flow | Navier-Stokes |
+| :--- | :---: | :---: | :---: |
+| **Resolution** | 64×64 | 32×32 | 64×64 |
+| **Input Channels** | 2 | 1 | 10 |
+| **Output Channels** | 2 | 1 | 10 |
+| **Fourier Modes (k₁, k₂)** | 12, 12 | 12, 12 | 12, 12 |
+| **Width** | 32 | 32 | 32 |
+| **Number of Layers** | 4 | 4 | 4 |
+| **Latent Dimension** | 64 | 64 | 64 |
+| **Encoder Channels** | [32, 64, 128] | [16, 32, 64] | [32, 64, 128] |
+| **Gated Bridge** | ✓ | — | — |
+
+### Training Configuration
+
+| Parameter | Burgers 2D | Darcy Flow | Navier-Stokes |
+| :--- | :---: | :---: | :---: |
+| **Training Samples** | 300 | 400 | 200 |
+| **Test Samples** | 100 | 100 | 50 |
+| **Batch Size** | 16 | 16 | 8 |
+| **Total Epochs** | 150 | 150 | 150 |
+| **Stage 1 Epochs (NCE+MSE)** | 110 | 110 | 110 |
+| **Stage 2 Epochs (MSE only)** | 40 | 40 | 40 |
+| **Stage 1 Learning Rate** | 1e-3 | 1e-3 | 1e-3 |
+| **Stage 2 Learning Rate** | 5e-4 | 1e-4 | 1e-4 |
+| **Optimizer** | Adam | Adam | Adam |
+| **Scheduler** | CosineAnnealingLR | CosineAnnealingLR | CosineAnnealingLR |
+
+### Loss Function Weights
+
+| Parameter | Burgers 2D | Darcy Flow | Navier-Stokes |
+| :--- | :---: | :---: | :---: |
+| **λ_MSE** | 10,000 | 1.0 | 1.0 |
+| **λ_NCE** | 0.01 | 1.0 | 1.0 |
+| **Relative MSE** | ✗ | ✗ | ✗ |
+
+> **Note:** Burgers 2D requires extreme loss scaling (10,000:0.01 ratio) because the velocity fields have very small magnitudes (~10⁻⁵), which would otherwise be dominated by the InfoNCE term (~3.0).
+
+---
+
+## 3. Definitive Architectural Improvements
 
 ### A. Loss Balancing via $\lambda_{NCE}$
 Early iterations suffered from a scale mismatch where the InfoNCE loss ($\approx 3.0$) dominated the physics loss ($\approx 10^{-5}$).
@@ -40,7 +90,7 @@ We identified that implicit broadcasting in `MSELoss` was causing the FNO baseli
 
 ---
 
-## 3. Detailed Results by Task
+## 4. Detailed Results by Task
 
 ### 2D Darcy Flow
 *   **Observation:** The strongest result for the LRN framework. Even after fixing the FNO baseline bug, the bidirectional latent constraint ($\hat{z}_f \leftrightarrow z_u$) provides a stable **10.55% reduction in error**.
@@ -53,7 +103,7 @@ We identified that implicit broadcasting in `MSELoss` was causing the FNO baseli
 
 ---
 
-## 4. Visual Comparison Analysis
+## 5. Visual Comparison Analysis
 
 The combined comparison plot below shows side-by-side predictions from both models (Vanilla FNO and LRN-FNO) against the ground truth solutions for all three PDE benchmarks.
 
@@ -91,7 +141,7 @@ The visual comparison confirms that LRN-FNO not only achieves lower numerical er
 
 ---
 
-## 5. Conclusion
+## 6. Conclusion
 
 The LRN-FNO framework is now fully mature and ready for deployment. It demonstrates that **Reciprocity-based Regularization** is more than just a theoretical concept—it is a practical tool for improving the accuracy and generalization of Neural Operators in fluid dynamics and beyond.
 

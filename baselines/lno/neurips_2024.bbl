@@ -1,0 +1,263 @@
+\begin{thebibliography}{10}
+
+\bibitem{Fourcastnet}
+Jaideep Pathak, Shashank Subramanian, Peter Harrington, Sanjeev Raja, Ashesh Chattopadhyay, Morteza Mardani, Thorsten Kurth, David Hall, Zongyi Li, Kamyar Azizzadenesheli, et~al.
+\newblock {FourCastNet}: a global data-driven high-resolution weather model using adaptive {Fourier} neural operators.
+\newblock {\em arXiv preprint arXiv:2202.11214}, 2022.
+
+\bibitem{ComplexStress}
+Zhenze Yang, Chi-Hua Yu, and Markus~J Buehler.
+\newblock Deep learning model to predict complex stress and strain fields in hierarchical composites.
+\newblock {\em Science Advances}, 7(15):eabd7416, 2021.
+
+\bibitem{DeepONetForwardInverse}
+Yifan Mei, Yijie Zhang, Xueyu Zhu, and Rongxi Gou.
+\newblock Forward and inverse problems for eikonal equation based on {DeepONet}.
+\newblock {\em arXiv preprint arXiv:2306.05754}, 2023.
+
+\bibitem{FINN_GroundwaterContaminant}
+Timothy Praditia, Matthias Karlbauer, Sebastian Otte, Sergey Oladyshkin, Martin~V Butz, and Wolfgang Nowak.
+\newblock Learning groundwater contaminant diffusion-sorption processes with a finite volume neural network.
+\newblock {\em Water Resources Research}, 58(12):e2022WR033149, 2022.
+
+\bibitem{FiniteElementMethods}
+Junuthula~Narasimha Reddy.
+\newblock An introduction to the finite element method.
+\newblock {\em New York}, 27:14, 1993.
+
+\bibitem{PIML}
+Zhongkai Hao, Songming Liu, Yichi Zhang, Chengyang Ying, Yao Feng, Hang Su, and Jun Zhu.
+\newblock Physics-informed machine learning: a survey on problems, methods and applications.
+\newblock {\em arXiv preprint arXiv:2211.08064}, 2022.
+
+\bibitem{PINN}
+Maziar Raissi, Paris Perdikaris, and George~E Karniadakis.
+\newblock Physics-informed neural networks: a deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations.
+\newblock {\em Journal of Computational Physics}, 378:686--707, 2019.
+
+\bibitem{FINN}
+Matthias Karlbauer, Timothy Praditia, Sebastian Otte, Sergey Oladyshkin, Wolfgang Nowak, and Martin~V Butz.
+\newblock Composing partial differential equations with physics-aware neural networks.
+\newblock In {\em Proceedings of the International Conference on Machine Learning (ICML)}, 2022.
+
+\bibitem{DeepGreen}
+Craig~R Gin, Daniel~E Shea, Steven~L Brunton, and J~Nathan Kutz.
+\newblock {DeepGreen}: deep learning of {Green’s} functions for nonlinear boundary value problems.
+\newblock {\em Scientific Reports}, 11(1):21614, 2021.
+
+\bibitem{PeRCNN}
+Chengping Rao, Pu~Ren, Qi~Wang, Oral Buyukozturk, Hao Sun, and Yang Liu.
+\newblock Encoding physics to learn reaction--diffusion processes.
+\newblock {\em Nature Machine Intelligence}, 5(7):765--779, 2023.
+
+\bibitem{PINN_DeepONet}
+Sifan Wang, Hanwen Wang, and Paris Perdikaris.
+\newblock Learning the solution operator of parametric partial differential equations with physics-informed {DeepONets}.
+\newblock {\em Science Advances}, 7(40):eabi8605, 2021.
+
+\bibitem{ChenChenTheroem}
+Tianping Chen and Hong Chen.
+\newblock Universal approximation to nonlinear operators by neural networks with arbitrary activation functions and its application to dynamical systems.
+\newblock {\em IEEE Transactions on Neural Networks}, 6(4):911--917, 1995.
+
+\bibitem{DeepONet}
+Lu~Lu, Pengzhan Jin, and George~Em Karniadakis.
+\newblock {DeepONet}: learning nonlinear operators for identifying differential equations based on the universal approximation theorem of operators.
+\newblock {\em arXiv preprint arXiv:1910.03193}, 2019.
+
+\bibitem{FNO}
+Zongyi Li, Nikola Kovachki, Kamyar Azizzadenesheli, Burigede Liu, Kaushik Bhattacharya, Andrew Stuart, and Anima Anandkumar.
+\newblock Fourier neural operator for parametric partial differential equations.
+\newblock {\em arXiv preprint arXiv:2010.08895}, 2020.
+
+\bibitem{NO}
+Nikola Kovachki, Zongyi Li, Burigede Liu, Kamyar Azizzadenesheli, Kaushik Bhattacharya, Andrew Stuart, and Anima Anandkumar.
+\newblock Neural operator: learning maps between function spaces with applications to {PDEs}.
+\newblock {\em Journal of Machine Learning Research}, 24(89):1--97, 2023.
+
+\bibitem{Attention}
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan~N Gomez, {\L}ukasz Kaiser, and Illia Polosukhin.
+\newblock Attention is all you need.
+\newblock In {\em Advances in Neural Information Processing Systems (NeurIPS)}, 2017.
+
+\bibitem{LOCA}
+Georgios Kissas, Jacob~H Seidman, Leonardo~Ferreira Guilhoto, Victor~M Preciado, George~J Pappas, and Paris Perdikaris.
+\newblock Learning operators with coupled attention.
+\newblock {\em Journal of Machine Learning Research}, 23(215):1--63, 2022.
+
+\bibitem{EA}
+Zhuoran Shen, Mingyuan Zhang, Haiyu Zhao, Shuai Yi, and Hongsheng Li.
+\newblock Efficient attention: attention with linear complexities.
+\newblock In {\em Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)}, 2021.
+
+\bibitem{NA}
+Yunyang Xiong, Zhanpeng Zeng, Rudrasis Chakraborty, Mingxing Tan, Glenn Fung, Yin Li, and Vikas Singh.
+\newblock Nystr{\"o}mformer: a {Nystr{\"o}m-based} algorithm for approximating self-attention.
+\newblock In {\em Proceedings of the AAAI Conference on Artificial Intelligence (AAAI)}, 2021.
+
+\bibitem{GalerkinTransformer}
+Shuhao Cao.
+\newblock Choose a transformer: {Fourier} or {Galerkin}.
+\newblock In {\em Advances in Neural Information Processing Systems (NeurIPS)}, 2021.
+
+\bibitem{GNOT}
+Zhongkai Hao, Zhengyi Wang, Hang Su, Chengyang Ying, Yinpeng Dong, Songming Liu, Ze~Cheng, Jian Song, and Jun Zhu.
+\newblock {GNOT}: a general neural operator {Transformer} for operator learning.
+\newblock In {\em Proceedings of the International Conference on Machine Learning (ICML)}, 2023.
+
+\bibitem{LSM}
+Haixu Wu, Tengge Hu, Huakun Luo, Jianmin Wang, and Mingsheng Long.
+\newblock Solving high-dimensional {PDEs} with latent spectral models.
+\newblock {\em arXiv preprint arXiv:2301.12664}, 2023.
+
+\bibitem{Transolver}
+Haixu Wu, Huakun Luo, Haowen Wang, Jianmin Wang, and Mingsheng Long.
+\newblock Transolver: a fast {Transformer} solver for {PDEs} on general geometries.
+\newblock {\em arXiv preprint arXiv:2402.02366}, 2024.
+
+\bibitem{UPT}
+Benedikt Alkin, Andreas F{\"u}rst, Simon Schmid, Lukas Gruber, Markus Holzleitner, and Johannes Brandstetter.
+\newblock Universal physics {Transformers}.
+\newblock {\em arXiv preprint arXiv:2402.12365}, 2024.
+
+\bibitem{LST}
+Valerii Iakovlev, Markus Heinonen, and Harri L{\"a}hdesm{\"a}ki.
+\newblock Learning space-time continuous latent neural {PDEs} from partially observed states.
+\newblock In {\em Advances in Neural Information Processing Systems (NeurIPS)}, 2024.
+
+\bibitem{LA}
+Tailin Wu, Takashi Maruyama, and Jure Leskovec.
+\newblock Learning to accelerate partial differential equations via latent global evolution.
+\newblock In {\em Advances in Neural Information Processing Systems (NeurIPS)}, 2022.
+
+\bibitem{DeepONetTL}
+Somdatta Goswami, Katiana Kontolati, Michael~D Shields, and George~Em Karniadakis.
+\newblock Deep transfer operator learning for partial differential equations under conditional shift.
+\newblock {\em Nature Machine Intelligence}, 4(12):1155--1164, 2022.
+
+\bibitem{GNO}
+Zongyi Li, Nikola Kovachki, Kamyar Azizzadenesheli, Burigede Liu, Kaushik Bhattacharya, Andrew Stuart, and Anima Anandkumar.
+\newblock Neural operator: graph kernel network for partial differential equations.
+\newblock {\em arXiv preprint arXiv:2003.03485}, 2020.
+
+\bibitem{OFormer}
+Zijie Li, Kazem Meidani, and Amir~Barati Farimani.
+\newblock Transformer for partial differential equations' operator learning.
+\newblock {\em arXiv preprint arXiv:2205.13671}, 2022.
+
+\bibitem{FactFormer}
+Zijie Li, Dule Shu, and Amir Barati~Farimani.
+\newblock Scalable {Transformer} for {PDE} surrogate modeling.
+\newblock In {\em Advances in Neural Information Processing Systems (NeurIPS)}, 2024.
+
+\bibitem{ONO}
+Zipeng Xiao, Zhongkai Hao, Bokai Lin, Zhijie Deng, and Hang Su.
+\newblock Improved operator learning by orthogonal attention.
+\newblock {\em arXiv preprint arXiv:2310.12487}, 2023.
+
+\bibitem{GNN}
+Franco Scarselli, Marco Gori, Ah~Chung Tsoi, Markus Hagenbuchner, and Gabriele Monfardini.
+\newblock The graph neural network model.
+\newblock {\em IEEE Transactions on Neural Networks}, 20(1):61--80, 2008.
+
+\bibitem{TransformerBoundaryInverseProblem}
+Ruchi Guo, Shuhao Cao, and Long Chen.
+\newblock Transformer meets boundary value inverse problems.
+\newblock In {\em Proceedings of the International Conference on Learning Representations (ICLR)}, 2022.
+
+\bibitem{ConvolutionalAutoEncoder}
+Guanchao Liu, Lei Zhang, Qingzhen Wang, and Jianhua Xu.
+\newblock Data-driven seismic prestack velocity inversion via combining residual network with convolutional autoencoder.
+\newblock {\em Journal of Applied Geophysics}, 207:104846, 2022.
+
+\bibitem{GPRInvNet}
+Bin Liu, Yuxiao Ren, Hanchi Liu, Hui Xu, Zhengfang Wang, Anthony~G Cohn, and Peng Jiang.
+\newblock {GPRInvNet}: deep learning-based ground-penetrating radar data inversion for tunnel linings.
+\newblock {\em IEEE Transactions on Geoscience and Remote Sensing}, 59(10):8305--8325, 2021.
+
+\bibitem{VelocityGAN}
+Zhongping Zhang, Yue Wu, Zheng Zhou, and Youzuo Lin.
+\newblock {VelocityGAN}: subsurface velocity image estimation using conditional adversarial networks.
+\newblock In {\em Proceedings of the IEEE Winter Conference on Applications of Computer Vision (WACV)}, 2019.
+
+\bibitem{LuSampling}
+Juri Ranieri, Amina Chebira, Yue~M Lu, and Martin Vetterli.
+\newblock Sampling and reconstructing diffusion fields with localized sources.
+\newblock In {\em Proceedings of the IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)}, 2011.
+
+\bibitem{PINN_Inverse1}
+Hassan Bararnia and Mehdi Esmaeilpour.
+\newblock On the application of physics informed neural networks ({PINN}) to solve boundary layer thermal-fluid problems.
+\newblock {\em International Communications in Heat and Mass Transfer}, 132(8):105890, 2022.
+
+\bibitem{PINN_Inverse2}
+Shengze Cai, Zhicheng Wang, Chryssostomos Chryssostomidis, and George~Em Karniadakis.
+\newblock Heat transfer prediction with unknown thermal boundary conditions using physics-informed neural networks.
+\newblock In {\em Proceedings of the Fluids Engineering Division Summer Meeting (FEDSM)}, 2020.
+
+\bibitem{PINN_Inverse3}
+Hongping Wang, Yi~Liu, and Shizhao Wang.
+\newblock Dense velocity reconstruction from particle image velocimetry/particle tracking velocimetry using a physics-informed neural network.
+\newblock {\em Physics of Fluids}, 34(1):017116, 2022.
+
+\bibitem{NIO}
+Roberto Molinaro, Yunan Yang, Bj{\"o}rn Engquist, and Siddhartha Mishra.
+\newblock Neural inverse operators for solving {PDE} inverse problems.
+\newblock {\em arXiv preprint arXiv:2301.11167}, 2023.
+
+\bibitem{FINN_BC}
+Co{\c{s}}ku~Can Horuz, Matthias Karlbauer, Timothy Praditia, Martin~V Butz, Sergey Oladyshkin, Wolfgang Nowak, and Sebastian Otte.
+\newblock Infering boundary conditions in finite volume neural networks.
+\newblock In {\em Proceedings of the International Conference on Artificial Neural Networks (ICANN)}, 2022.
+
+\bibitem{LSI}
+Qingqing Zhao, David~B Lindell, and Gordon Wetzstein.
+\newblock Learning to solve pde-constrained inverse problems with graph networks.
+\newblock In {\em Proceedings of the International Conference on Machine Learning (ICML)}, 2022.
+
+\bibitem{GeoFNO}
+Zongyi Li, Daniel~Zhengyu Huang, Burigede Liu, and Anima Anandkumar.
+\newblock Fourier neural operator with learned deformations for {PDEs} on general geometries.
+\newblock {\em Journal of Machine Learning Research}, 24(388):1--26, 2023.
+
+\bibitem{FFNO}
+Alasdair Tran, Alexander Mathews, Lexing Xie, and Cheng~Soon Ong.
+\newblock Factorized {Fourier} neural operators.
+\newblock {\em arXiv preprint arXiv:2111.13802}, 2021.
+
+\bibitem{UFNO}
+Gege Wen, Zongyi Li, Kamyar Azizzadenesheli, Anima Anandkumar, and Sally~M Benson.
+\newblock {U-FNO}--an enhanced {Fourier} neural operator-based deep-learning model for multiphase flow.
+\newblock {\em Advances in Water Resources}, 163:104180, 2022.
+
+\bibitem{inpainting1}
+Deepak Pathak, Philipp Krahenbuhl, Jeff Donahue, Trevor Darrell, and Alexei~A Efros.
+\newblock Context encoders: Feature learning by inpainting.
+\newblock In {\em Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, 2016.
+
+\bibitem{inpainting2}
+Jiahui Yu, Zhe Lin, Jimei Yang, Xiaohui Shen, Xin Lu, and Thomas~S Huang.
+\newblock Generative image inpainting with contextual attention.
+\newblock In {\em Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, 2018.
+
+\bibitem{outpainting1}
+Zongxin Yang, Jian Dong, Ping Liu, Yi~Yang, and Shuicheng Yan.
+\newblock Very long natural scenery image prediction by outpainting.
+\newblock In {\em Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)}, 2019.
+
+\bibitem{outpainting2}
+Mark Sabini and Gili Rusak.
+\newblock Painting outside the box: Image outpainting with gans.
+\newblock {\em arXiv preprint arXiv:1808.08483}, 2018.
+
+\bibitem{AdamW}
+Ilya Loshchilov and Frank Hutter.
+\newblock Decoupled weight decay regularization.
+\newblock In {\em Proceedings of the International Conference on Learning Representations (ICLR)}, 2018.
+
+\bibitem{OneCycleLR}
+Leslie~N Smith and Nicholay Topin.
+\newblock Super-convergence: very fast training of neural networks using large learning rates.
+\newblock In {\em Artificial Intelligence and Machine Learning for Multi-Domain Operations Applications}, 2019.
+
+\end{thebibliography}

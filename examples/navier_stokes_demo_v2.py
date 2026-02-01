@@ -73,12 +73,12 @@ def visualize_ns_predictions(model_fno, model_lrn, dataset, device='cpu', filena
     fig, axes = plt.subplots(2, 3, figsize=(15, 9))
     
     # Input (Last step of input)
-    im0 = axes[0, 0].imshow(u_in[0, -1].cpu().numpy(), cmap='jet')
+    im0 = axes[0, 0].imshow(u_in[0, -1].cpu().numpy(), cmap='viridis')
     axes[0, 0].set_title('Input: w(x, t=10)')
     plt.colorbar(im0, ax=axes[0, 0])
     
     # Truth
-    im1 = axes[0, 1].imshow(gt_np, cmap='jet')
+    im1 = axes[0, 1].imshow(gt_np, cmap='magma')
     axes[0, 1].set_title('Truth: w(x, t=20)')
     plt.colorbar(im1, ax=axes[0, 1])
     
@@ -89,11 +89,11 @@ def visualize_ns_predictions(model_fno, model_lrn, dataset, device='cpu', filena
     plt.colorbar(im5, ax=axes[0, 2])
     
     # Predictions
-    im3 = axes[1, 0].imshow(fno_np, cmap='jet')
+    im3 = axes[1, 0].imshow(fno_np, cmap='magma')
     axes[1, 0].set_title(f'Vanilla FNO\nRel L2 (Seq): {l2_fno:.4f}')
     plt.colorbar(im3, ax=axes[1, 0])
     
-    im4 = axes[1, 1].imshow(lrn_np, cmap='jet')
+    im4 = axes[1, 1].imshow(lrn_np, cmap='magma')
     axes[1, 1].set_title(f'LRN-FNO V2\nRel L2 (Seq): {l2_lrn:.4f}')
     plt.colorbar(im4, ax=axes[1, 1])
     
@@ -211,7 +211,7 @@ def compare_navier_stokes_v2():
         stage1_lr=1e-3,
         stage2_lr=1e-4,
         device=str(device),
-        checkpoint_dir='ns_v2_checkpoints'
+        checkpoint_dir='checkpoints/ns_v2_checkpoints'
     )
     lrn_history = trainer.train()
     

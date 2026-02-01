@@ -78,7 +78,7 @@ def visualize_predictions_2d(model_fno, model_lrn, dataset, device='cpu', filena
     axes[0, 0].set_title('Input Coefficient a(x)')
     plt.colorbar(im0, ax=axes[0, 0])
     
-    im1 = axes[0, 1].imshow(u_np, cmap='RdBu_r')
+    im1 = axes[0, 1].imshow(u_np, cmap='magma')
     axes[0, 1].set_title('Ground Truth u(x)')
     plt.colorbar(im1, ax=axes[0, 1])
     
@@ -90,11 +90,11 @@ def visualize_predictions_2d(model_fno, model_lrn, dataset, device='cpu', filena
     plt.colorbar(im5, ax=axes[0, 2])
     
     # Row 2: Predictions and Errors
-    im3 = axes[1, 0].imshow(pred_fno_np, cmap='RdBu_r')
+    im3 = axes[1, 0].imshow(pred_fno_np, cmap='magma')
     axes[1, 0].set_title(f'Vanilla FNO\nRel L2: {l2_fno:.4f}')
     plt.colorbar(im3, ax=axes[1, 0])
     
-    im4 = axes[1, 1].imshow(pred_lrn_np, cmap='RdBu_r')
+    im4 = axes[1, 1].imshow(pred_lrn_np, cmap='magma')
     axes[1, 1].set_title(f'LRN-FNO V2\nRel L2: {l2_lrn:.4f}')
     plt.colorbar(im4, ax=axes[1, 1])
     
@@ -201,7 +201,7 @@ def compare_darcy_v2():
         stage1_lr=1e-3,
         stage2_lr=1e-4,
         device=str(device),
-        checkpoint_dir='darcy_v2_checkpoints'
+        checkpoint_dir='checkpoints/darcy_v2_checkpoints'
     )
     lrn_history = trainer.train()
     

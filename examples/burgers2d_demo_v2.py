@@ -77,24 +77,24 @@ def visualize_burgers2d(model_fno, model_lrn, dataset, device='cpu', filename='b
     fig, axes = plt.subplots(3, 3, figsize=(15, 12))
     
     # Row 1: Ground Truth
-    im0 = axes[0, 0].imshow(u_0, cmap='jet')
+    im0 = axes[0, 0].imshow(u_0, cmap='viridis')
     axes[0, 0].set_title('Input u_0')
     plt.colorbar(im0, ax=axes[0, 0])
     
-    im1 = axes[0, 1].imshow(u_gt_np, cmap='jet')
+    im1 = axes[0, 1].imshow(u_gt_np, cmap='magma')
     axes[0, 1].set_title('Truth u_T')
     plt.colorbar(im1, ax=axes[0, 1])
     
-    im2 = axes[0, 2].imshow(v_gt_np, cmap='jet')
+    im2 = axes[0, 2].imshow(v_gt_np, cmap='magma')
     axes[0, 2].set_title('Truth v_T')
     plt.colorbar(im2, ax=axes[0, 2])
     
     # Row 2: FNO
-    im3 = axes[1, 0].imshow(u_fno, cmap='jet')
+    im3 = axes[1, 0].imshow(u_fno, cmap='magma')
     axes[1, 0].set_title(f'FNO u_T (Rel L2: {l2_fno:.4f})')
     plt.colorbar(im3, ax=axes[1, 0])
     
-    im4 = axes[1, 1].imshow(v_fno, cmap='jet')
+    im4 = axes[1, 1].imshow(v_fno, cmap='magma')
     axes[1, 1].set_title(f'FNO v_T')
     plt.colorbar(im4, ax=axes[1, 1])
     
@@ -104,11 +104,11 @@ def visualize_burgers2d(model_fno, model_lrn, dataset, device='cpu', filename='b
     plt.colorbar(im5, ax=axes[1, 2])
     
     # Row 3: LRN
-    im6 = axes[2, 0].imshow(u_lrn, cmap='jet')
+    im6 = axes[2, 0].imshow(u_lrn, cmap='magma')
     axes[2, 0].set_title(f'LRN u_T (Rel L2: {l2_lrn:.4f})')
     plt.colorbar(im6, ax=axes[2, 0])
     
-    im7 = axes[2, 1].imshow(v_lrn, cmap='jet')
+    im7 = axes[2, 1].imshow(v_lrn, cmap='magma')
     axes[2, 1].set_title(f'LRN v_T')
     plt.colorbar(im7, ax=axes[2, 1])
     
@@ -212,7 +212,7 @@ def compare_burgers2d_v2():
         stage1_lr=1e-3,
         stage2_lr=5e-4,     # Faster fine-tuning
         device=str(device),
-        checkpoint_dir='burgers2d_v2_checkpoints'
+        checkpoint_dir='checkpoints/burgers2d_v2_checkpoints'
     )
     lrn_history = trainer.train()
     

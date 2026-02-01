@@ -17,7 +17,22 @@ from torch.utils.data import DataLoader
 from typing import Optional, Dict, List, Callable, Any
 from pathlib import Path
 import time
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except ImportError:
+    class tqdm:
+        def __init__(self, iterable=None, *args, **kwargs):
+            self.iterable = iterable
+        def __iter__(self):
+            return iter(self.iterable)
+        def update(self, *args, **kwargs):
+            pass
+        def set_postfix(self, *args, **kwargs):
+            pass
+        def set_description(self, *args, **kwargs):
+            pass
+        def close(self):
+            pass
 
 
 class Trainer:
