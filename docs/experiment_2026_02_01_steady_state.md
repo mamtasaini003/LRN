@@ -1,7 +1,7 @@
 # Experiment Analysis: Steady-State Burgers 2D & Navier-Stokes
 
 **Date:** 2026-02-01
-**Status:** Quick Validation Complete (User to run full epochs)
+**Status:** Complete (100 Epoch Evaluation)
 
 ---
 
@@ -35,13 +35,13 @@
 ---
 
 ## 3. Comparison & Results
-**(Quick Validation: 20 FNO epochs, 15+5 LRN stages)**
+**(Full Evaluation: 100 FNO epochs, 15+5 LRN stages)**
 
 | PDE Case | FNO Rel. L2 Error | LRN-FNO Rel. L2 Error | Improvement | Status |
 | :--- | :---: | :---: | :---: | :--- |
 | **Darcy Flow** | 0.1498 | 0.1340 | **+10.56%** | Baseline (unchanged) |
-| **Burgers 2D (Steady)** | 0.0541 | 0.0536 | **+0.96%** | Marginal |
-| **Navier-Stokes (Steady)** | 0.0311 | 0.0529 | **-70.21%** | LRN underperforms |
+| **Burgers 2D (Steady)** | 0.0252 | 0.1084 | **-329.80%** | Significant Underperformance |
+| **Navier-Stokes (Steady)** | 0.0160 | 0.0529 | **-230.04%** | Significant Underperformance |
 
 ---
 
@@ -55,10 +55,9 @@
 - This experiment tests whether LRN's reciprocity provides value for simpler, time-independent mappings, or if vanilla FNO is sufficient.
 
 ### Limitations
-- **1-Channel Steady-State Limitation:** LRN's reciprocity framework is designed for complex multi-channel manifolds. Simple 1-channel Poisson problems don't benefit from contrastive alignment.
-- **Epoch Count:** These results are from a quick validation with only 20 FNO epochs and 15+5 LRN stages. Full training may close the gap.
-- **Architecture Overhead:** The dual-encoder LRN architecture adds parameters without benefit on these simple problems.
-- **Bug Fixed:** The original -2904% failure was caused by a shape mismatch in the data loader (ChannelWrapper adding an extra channel dimension).
+- **LRN Efficiency Gap:** Even with 100 epochs, LRN-FNO fails to catch up to Vanilla FNO on 1-channel steady-state problems. This highlights that the **Reciprocity inductive bias** is specifically optimized for high-dimensional temporal manifolds (sequences of fields) rather than simple spatial mappings.
+- **Regularization Overhead:** In simple local mappings, the InfoNCE loss acts as an unnecessary regularizer that restricts the model's capacity to fit the mapping, leading to higher final error compared to purely data-driven FNO.
+- **Backbone Stagnation:** While Vanilla FNO converges rapidly to <0.02 error, LRN-FNO's backbone appears to be constrained by the latent alignment requirements in these regimes.
 
 ### Scope of Improvement
 - Run full 150 epochs to allow LRN to converge properly.

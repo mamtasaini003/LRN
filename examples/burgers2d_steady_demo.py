@@ -76,7 +76,7 @@ def main():
     mse_loss = nn.MSELoss()
     
     print("Training FNO for 20 epochs (quick validation)...")
-    for epoch in range(1, 21):
+    for epoch in range(1, 101):
         fno.train()
         epoch_loss = 0.0
         for f, u in train_loader:
