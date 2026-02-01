@@ -168,6 +168,7 @@ mlruns/
 # =============================================================================
 
 # Data directories
+data/*
 data/raw/
 data/processed/
 data/interim/
@@ -241,9 +242,9 @@ ehthumbs_vista.db
 
 # Experiment outputs
 outputs/
-# results/
+results/
 figures/
-# plots/
+plots/
 
 # Cache directories
 .cache/
