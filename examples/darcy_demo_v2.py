@@ -58,9 +58,9 @@ def visualize_predictions_2d(model_fno, model_lrn, dataset, device='cpu', filena
         
     # Move to CPU for plotting
     a_np = a.squeeze().cpu().numpy()
-    u_np = u.cpu().numpy()
-    pred_fno_np = pred_fno.cpu().numpy()
-    pred_lrn_np = pred_lrn.cpu().numpy()
+    u_np = u.squeeze().cpu().numpy()
+    pred_fno_np = pred_fno.squeeze().cpu().numpy()
+    pred_lrn_np = pred_lrn.squeeze().cpu().numpy()
     
     # Compute Absolute Error
     err_fno = np.abs(u_np - pred_fno_np)
@@ -159,10 +159,8 @@ def compare_darcy_v2():
             a, u = a.to(device), u.to(device)
             optimizer.zero_grad()
             pred = fno(a)
-            # Ensure shapes match for MSE [B, H, W]
-            pred = pred.squeeze(1)
-            
-            loss = mse_loss(pred, u)
+            # Ensure shapes match for MSE: pred [B, 1, H, W] -> [B, H, W], u [B, H, W]
+            loss = mse_loss(pred.squeeze(1), u)
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
@@ -187,7 +185,8 @@ def compare_darcy_v2():
         encoder_channels=[16, 32, 64]
     ).to(device)
     
-    loss_fn = LRNLoss(lambda_mse=1.0)
+    # Restore original successful hyperparameters
+    loss_fn = LRNLoss(lambda_mse=1.0, lambda_nce=1.0)
     
     # V2: 2-stage training (110 + 40 = 150 epochs)
     print("Training LRN-FNO V2 (2-Stage: 110 + 40 = 150 epochs)...")
@@ -199,7 +198,7 @@ def compare_darcy_v2():
         stage1_epochs=110,  # NCE + MSE
         stage2_epochs=40,   # MSE only
         stage1_lr=1e-3,
-        stage2_lr=1e-4,
+        stage2_lr=1e-4,     # Slower fine-tuning for stability
         device=str(device),
         checkpoint_dir='checkpoints/darcy_v2_checkpoints'
     )
@@ -223,7 +222,7 @@ def compare_darcy_v2():
             
             # LRN
             output = lrn(a, return_latents=False)
-            pred_lrn = output['prediction'].squeeze(1)
+            pred_lrn = output['prediction']
             
             # Calculate L2 relative error batch-wise
             u_flat = u.view(u.shape[0], -1)

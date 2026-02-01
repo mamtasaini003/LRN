@@ -35,7 +35,8 @@ class SpectralConv1d(nn.Module):
         self.modes = modes
         
         # Scale for initialization
-        scale = 1 / (in_channels * out_channels)
+        # FNO weights scale: 1 / (in * out) is often too small for randn
+        scale = (1 / (in_channels * out_channels))
         
         # Complex weights for Fourier modes: R_k(ξ)
         self.weights = nn.Parameter(
@@ -88,27 +89,16 @@ class SpectralConv1d(nn.Module):
 
 class SpectralConv2d(nn.Module):
     """
-    2D Spectral Convolution Layer
-    
-    Performs convolution in 2D Fourier space by learning complex weights
-    for the first `modes1 x modes2` Fourier modes.
+    2D Fourier layer. It does FFT, linear transform, and Inverse FFT.    
     """
-    
-    def __init__(self, in_channels: int, out_channels: int, modes1: int, modes2: int):
-        """
-        Args:
-            in_channels: Number of input channels
-            out_channels: Number of output channels
-            modes1: Number of Fourier modes in first dimension
-            modes2: Number of Fourier modes in second dimension
-        """
+    def __init__(self, in_channels, out_channels, modes1, modes2):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.modes1 = modes1
         self.modes2 = modes2
         
-        scale = 1 / (in_channels * out_channels)
+        scale = (1 / (in_channels * out_channels))
         
         # Complex weights for positive and negative frequency modes
         self.weights1 = nn.Parameter(

@@ -44,42 +44,60 @@ def visualize_ns_predictions(model_fno, model_lrn, dataset, device='cpu', filena
     model_lrn.eval()
     
     idx = 0
-    u_in, u_out = dataset[idx]
+    f, u_gt = dataset[idx] # Renamed u_in to f, u_out to u_gt
     
-    u_in = u_in.unsqueeze(0).to(device)  # [1, 10, H, W]
-    u_out_gt = u_out.to(device)          # [10, H, W]
+    f = f.to(device)   # [10, H, W]
+    u_gt = u_gt.to(device) # [10, H, W]
+    
+    # Add batch dim
+    f_in = f.unsqueeze(0)   # [1, 10, H, W]
     
     with torch.no_grad():
-        pred_fno = model_fno(u_in).squeeze(0)  # [10, H, W]
-        output_lrn = model_lrn(u_in, return_latents=False)
-        pred_lrn = output_lrn['prediction'].squeeze(0)
+        pred_fno = model_fno(f_in).squeeze(0)      # [10, H, W]
+        output_lrn = model_lrn(f_in, return_latents=False)
+        pred_lrn = output_lrn['prediction'].squeeze(0) # [10, H, W]
     
-    # Select last time step for visualization
-    t_idx = -1
+    # Ensure [C, H, W] by squeezing only batch
+    # The previous squeeze(0) already handled the batch dimension.
+    # Now, if the output is [C, H, W], we need to handle C.
+    # For this demo, C=1, so we can directly use it or squeeze if it's [1, H, W]
     
-    gt_np = u_out_gt[t_idx].cpu().numpy()
-    fno_np = pred_fno[t_idx].cpu().numpy()
-    lrn_np = pred_lrn[t_idx].cpu().numpy()
+    # Original code had:
+    # pred_fno = pred_fno.squeeze(0) # This was for [1, 1, H, W] -> [1, H, W]
+    # pred_lrn = pred_lrn.squeeze(0) # This was for [1, 1, H, W] -> [1, H, W]
+    # u_out_gt = u_out_gt.squeeze(0) if u_out_gt.dim() == 4 else u_out_gt # This was for [1, 1, H, W] -> [1, H, W] or [1, H, W] -> [1, H, W]
+    
+    # With the new .squeeze(0) on pred_fno and pred_lrn, they are already [C, H, W] (where C=1)
+    # u_gt is also [C, H, W] (where C=1)
+    
+    # Select first channel (steady state)
+    t_idx = 0
+    
+    # If already squeezed to [H, W], use as is, else index
+    gt_np = u_gt[t_idx].cpu().numpy() if u_gt.dim() == 3 else u_gt.cpu().numpy()
+    fno_np = pred_fno[t_idx].cpu().numpy() if pred_fno.dim() == 3 else pred_fno.cpu().numpy()
+    lrn_np = pred_lrn[t_idx].cpu().numpy() if pred_lrn.dim() == 3 else pred_lrn.cpu().numpy()
     
     err_fno = np.abs(gt_np - fno_np)
     err_lrn = np.abs(gt_np - lrn_np)
     
     # Calculate Rel L2 over full sequence
-    norm_gt = torch.norm(u_out_gt.reshape(-1)).item()
-    l2_fno = torch.norm((pred_fno - u_out_gt).reshape(-1)).item() / norm_gt
-    l2_lrn = torch.norm((pred_lrn - u_out_gt).reshape(-1)).item() / norm_gt
+    norm_gt = torch.norm(u_gt.reshape(-1)).item()
+    l2_fno = torch.norm((pred_fno - u_gt).reshape(-1)).item() / norm_gt
+    l2_lrn = torch.norm((pred_lrn - u_gt).reshape(-1)).item() / norm_gt
     
     # Plotting
     fig, axes = plt.subplots(2, 3, figsize=(15, 9))
     
-    # Input (Last step of input)
-    im0 = axes[0, 0].imshow(u_in[0, -1].cpu().numpy(), cmap='viridis')
-    axes[0, 0].set_title('Input: w(x, t=10)')
+    # Input forcing (average over channels if multi-channel, though here C=1)
+    f_plot = f[0, 0].cpu().numpy() if f.dim() == 4 else f[0].cpu().numpy()
+    im0 = axes[0, 0].imshow(f_plot, cmap='viridis')
+    axes[0, 0].set_title('Forcing: f(x, y)')
     plt.colorbar(im0, ax=axes[0, 0])
     
     # Truth
     im1 = axes[0, 1].imshow(gt_np, cmap='magma')
-    axes[0, 1].set_title('Truth: w(x, t=20)')
+    axes[0, 1].set_title('Truth: w_steady')
     plt.colorbar(im1, ax=axes[0, 1])
     
     # Error: FNO
@@ -197,6 +215,7 @@ def compare_navier_stokes_v2():
         encoder_channels=[32, 64, 128]
     ).to(device)
     
+    # Restore original successful hyperparameters
     loss_fn = LRNLoss(lambda_mse=1.0)
     
     # V2: 2-stage training (110 + 40 = 150 epochs)
@@ -209,7 +228,7 @@ def compare_navier_stokes_v2():
         stage1_epochs=110,  # NCE + MSE
         stage2_epochs=40,   # MSE only
         stage1_lr=1e-3,
-        stage2_lr=1e-4,
+        stage2_lr=1e-4,     # Slower fine-tuning
         device=str(device),
         checkpoint_dir='checkpoints/ns_v2_checkpoints'
     )
