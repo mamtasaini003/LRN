@@ -206,12 +206,7 @@ class SpectralLatentBridge(nn.Module):
         self.num_modes = num_modes
         self.spatial_dim = spatial_dim
         
-        # Generate spectral modulation weights from latent
-        self.mode_generator = nn.Sequential(
-            nn.Linear(latent_dim, feature_dim * num_modes * 2),  # *2 for complex
-        )
-        
-        # Fallback spatial bridge for non-spectral components
+        # Fallback spatial bridge
         self.spatial_bridge = LatentBridge(
             feature_dim=feature_dim,
             latent_dim=latent_dim,
@@ -224,11 +219,6 @@ class SpectralLatentBridge(nn.Module):
         z_f: torch.Tensor
     ) -> torch.Tensor:
         """
-        Spectral latent modulation.
-        
-        For 1D: Modulates Fourier modes of feature channels.
-        Falls back to spatial bridge for simplicity in current implementation.
+        Spectral latent modulation (Placeholder).
         """
-        # Current implementation uses spatial bridge
-        # Full spectral modulation can be added for advanced use
         return self.spatial_bridge(features, z_f)

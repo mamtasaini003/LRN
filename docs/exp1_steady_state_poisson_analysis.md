@@ -95,9 +95,9 @@ Solution (u) ──→ CNN Encoder ──→ z_u
 
 | Stage | Epochs | Learning Rate | Loss |
 |-------|--------|---------------|------|
-| Stage 1 (Joint) | 21 | 1e-3 | MSE + NCE |
-| Stage 2 (Distillation) | 9 | 1e-4 | MSE only |
-| **Total** | **30** | - | - |
+| Stage 1 (Joint) | 73 | 1e-3 | MSE + NCE |
+| Stage 2 (Distillation) | 27 | 1e-4 | MSE only |
+| **Total** | **100** | - | - |
 
 ---
 
@@ -105,14 +105,14 @@ Solution (u) ──→ CNN Encoder ──→ z_u
 
 | Dataset | FNO Rel L2 | LRR-FNO Rel L2 | Improvement |
 |---------|------------|----------------|-------------|
-| Poisson Circle Domain | 0.157104 | 0.088544 | **+43.64%** |
-| Heat Conduction Cone | 0.066316 | 0.056618 | **+14.62%** |
-| Poisson Ellipse (AR=1.5) | 0.041202 | 0.031752 | **+22.94%** |
-| Poisson Ellipse (AR=2.0) | 0.047980 | 0.038312 | **+20.15%** |
-| Poisson Ellipse (AR=2.5) | 0.039872 | 0.029895 | **+25.02%** |
-| Forced Semicircle BVP | 0.045593 | 0.037125 | **+18.57%** |
+| Poisson Circle Domain | 0.115418 | 0.108803 | **+5.73%** |
+| Heat Conduction Cone | 0.063345 | 0.058512 | **+7.63%** |
+| Poisson Ellipse (AR=1.5) | 0.024979 | 0.013405 | **+46.33%** |
+| Poisson Ellipse (AR=2.0) | 0.125056 | 0.108207 | **+13.47%** |
+| Poisson Ellipse (AR=2.5) | 0.025128 | 0.015133 | **+39.78%** |
+| Forced Semicircle BVP | 0.056437 | 0.046637 | **+17.36%** |
 
-**Average Improvement: +24.16%**
+**Average Improvement: +21.72%**
 
 ---
 

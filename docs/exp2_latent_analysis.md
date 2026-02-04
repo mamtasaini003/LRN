@@ -32,9 +32,9 @@ Analyze the latent space representations in LRR-FNO and compare spectral error p
 
 | Stage | Epochs | LR | Loss Function |
 |-------|--------|-----|---------------|
-| Stage 1 (Combined) | 36 | 1e-3 | NCE + MSE |
-| Stage 2 (Distillation) | 14 | 1e-4 | MSE only |
-| **Total** | **50** | - | - |
+| Stage 1 (Combined) | 73 | 1e-3 | NCE + MSE |
+| Stage 2 (Distillation) | 27 | 1e-4 | MSE only |
+| **Total** | **100** | - | - |
 
 ---
 
@@ -56,17 +56,17 @@ Solution (u) ──→ CNN Encoder [32,64,128] ──→ z_u (64-dim)
 
 Shows how z_f (backbone) and z_u (solution) representations evolve and align during training.
 
-![t-SNE Evolution](file:///home/mamta/.gemini/antigravity/brain/e7b8f497-0bfc-496a-8b41-4066288c7481/Circle_tsne_evolution.png)
+![t-SNE Evolution](images/Circle_tsne_evolution.png)
 
 **Observation:** Progressive overlap between z_f (blue) and z_u (red) clusters indicates increasing alignment as training progresses.
 
 ### 5.2 Alignment Metrics Over Training
 
-![Alignment Metrics](file:///home/mamta/.gemini/antigravity/brain/e7b8f497-0bfc-496a-8b41-4066288c7481/Circle_alignment_metrics.png)
+![Alignment Metrics](images/Circle_alignment_metrics.png)
 
 ### 5.3 Spectral Error Comparison (fRMSE)
 
-![Spectral Comparison](file:///home/mamta/.gemini/antigravity/brain/e7b8f497-0bfc-496a-8b41-4066288c7481/Circle_spectral_comparison.png)
+![Spectral Comparison](images/Circle_spectral_comparison.png)
 
 | Frequency Band | FNO | LRR-FNO | Improvement |
 |----------------|-----|---------|-------------|
@@ -78,7 +78,7 @@ Shows how z_f (backbone) and z_u (solution) representations evolve and align dur
 
 ### 5.4 Latent Representation Alignment
 
-![Latent Reps](file:///home/mamta/.gemini/antigravity/brain/e7b8f497-0bfc-496a-8b41-4066288c7481/Circle_latent_reps.png)
+![Latent Reps](images/Circle_latent_reps.png)
 
 **Visualization Features:**
 - **Blue circles:** z_f (backbone features)
@@ -106,6 +106,9 @@ Shows how z_f (backbone) and z_u (solution) representations evolve and align dur
 
 ---
 
+
+---
+
 ## 8. Artifacts
 
 | File | Description |
@@ -114,3 +117,14 @@ Shows how z_f (backbone) and z_u (solution) representations evolve and align dur
 | `results/exp2_latent_analysis/Circle_tsne_evolution.png` | t-SNE evolution plot |
 | `results/exp2_latent_analysis/Circle_alignment_metrics.png` | Alignment metrics |
 | `results/exp2_latent_analysis/Circle_spectral_comparison.png` | Spectral comparison |
+
+---
+
+## 9. Reproducibility
+
+To reproduce these results with the full dataset, refer to [Reproducibility Guide](reproducibility.md).
+
+**Quick Reproduce:**
+```bash
+python3 examples/exp2_latent_analysis_spectral.py --dataset dataset/Circle.nc --epochs 500 --max_samples -1
+```

@@ -21,7 +21,7 @@ Test whether LRR-FNO generalizes better across resolutions by training on 64×64
 | **Dataset** | Circle.nc |
 | **Training Samples** | 160 |
 | **Test Samples** | 40 |
-| **Epochs** | 50 (2-stage: 36+14) |
+| **Epochs** | 100 (2-stage: 73+27) |
 
 ---
 
@@ -29,8 +29,8 @@ Test whether LRR-FNO generalizes better across resolutions by training on 64×64
 
 | Stage | Epochs | LR | Loss |
 |-------|--------|-----|------|
-| Stage 1 | 36 | 1e-3 | NCE + MSE |
-| Stage 2 | 14 | 1e-4 | MSE only |
+| Stage 1 | 73 | 1e-3 | NCE + MSE |
+| Stage 2 | 27 | 1e-4 | MSE only |
 
 ---
 
@@ -50,7 +50,7 @@ Test whether LRR-FNO generalizes better across resolutions by training on 64×64
 
 ## 5. Visualization
 
-![Super-Resolution](file:///home/mamta/work/LRN/results/exp3_super_resolution/Circle_super_resolution.png)
+![Super-Resolution](images/Circle_super_resolution.png)
 
 ---
 
@@ -60,9 +60,23 @@ LRR's latent anchoring encourages the model to learn resolution-invariant repres
 
 ---
 
+
+---
+
 ## 7. Artifacts
 
 | File | Description |
 |------|-------------|
 | `examples/exp3_super_resolution.py` | Experiment script |
 | `results/exp3_super_resolution/Circle_super_resolution.png` | Comparison plot |
+
+---
+
+## 8. Reproducibility
+
+To reproduce these results with the full dataset, refer to [Reproducibility Guide](reproducibility.md).
+
+**Quick Reproduce:**
+```bash
+python3 examples/exp3_super_resolution.py --dataset dataset/Circle.nc --epochs 500 --max_samples -1
+```

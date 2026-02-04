@@ -20,7 +20,7 @@ Test model degradation with increasing Gaussian noise on input forcing. Hypothes
 | **Dataset** | Circle.nc |
 | **Training Samples** | 160 |
 | **Test Samples** | 40 |
-| **Epochs** | 50 (2-stage: 36+14) |
+| **Epochs** | 100 (2-stage: 73+27) |
 | **Noise Levels (σ)** | 0, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5 |
 
 ---
@@ -55,7 +55,7 @@ c_noisy = c + N(0, σ² × std(c)²)
 
 ## 5. Visualization
 
-![Noise Robustness](file:///home/mamta/work/LRN/results/exp4_noise_robustness/Circle_noise_robustness.png)
+![Noise Robustness](images/Circle_noise_robustness.png)
 
 ---
 
@@ -70,9 +70,23 @@ The InfoNCE loss encourages the backbone to extract noise-invariant features tha
 
 ---
 
+
+---
+
 ## 7. Artifacts
 
 | File | Description |
 |------|-------------|
 | `examples/exp4_noise_robustness.py` | Experiment script |
 | `results/exp4_noise_robustness/Circle_noise_robustness.png` | Comparison plot |
+
+---
+
+## 8. Reproducibility
+
+To reproduce these results with the full dataset, refer to [Reproducibility Guide](reproducibility.md).
+
+**Quick Reproduce:**
+```bash
+python3 examples/exp4_noise_robustness.py --dataset dataset/Circle.nc --epochs 500 --max_samples -1
+```

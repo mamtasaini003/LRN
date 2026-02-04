@@ -1,30 +1,16 @@
 """
-Complete LRN-FNO Model
+LRN-FNO Model Definitions.
 
-Combines the FNO backbone with dual encoders and latent bridge to form
-the complete Latent Reciprocity Network for neural PDE solving.
-
-Architecture:
-    1. Forward encoder E_f: f → z_f
-    2. Reverse encoder E_u: u → z_u (training only)
-    3. FNO backbone: f → v_K
-    4. Latent bridge: (v_K, z_f) → v^latent
-    5. Projection: v^latent → ũ
-
-Training stages:
-    - Stage I: Train E_f, E_u with L_NCE (manifold alignment)
-    - Stage II: Train all with L_NCE + λ·L_MSE (hybrid optimization)
-    - Stage III: Discard E_u, train E_f, FNO with L_MSE (distillation)
+Standard Latent Reciprocity Network implementation.
 """
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Dict
 
-from .fno import FNO1d, FNO2d
-from .encoders import ForwardEncoder, ReverseEncoder
-from .latent_bridge import LatentBridge, GatedLatentBridge
+from ..components.fno import FNO1d, FNO2d
+from ..components.encoders import ForwardEncoder, ReverseEncoder
+from ..components.latent_bridge import LatentBridge, GatedLatentBridge
 
 
 class LRNFNO1d(nn.Module):
@@ -46,18 +32,6 @@ class LRNFNO1d(nn.Module):
         padding: int = 8,
         use_gated_bridge: bool = False,
     ):
-        """
-        Args:
-            in_channels: Input field channels
-            out_channels: Output solution channels
-            modes: Number of Fourier modes
-            width: FNO hidden width
-            num_layers: Number of Fourier layers (K)
-            latent_dim: Latent space dimension (d_z)
-            encoder_channels: Hidden channels for encoders
-            padding: Padding for non-periodic domains
-            use_gated_bridge: Use gated latent bridge variant
-        """
         super().__init__()
         
         self.in_channels = in_channels
@@ -112,20 +86,6 @@ class LRNFNO1d(nn.Module):
         u: Optional[torch.Tensor] = None,
         return_latents: bool = True,
     ) -> Dict[str, torch.Tensor]:
-        """
-        Forward pass through LRN-FNO.
-        
-        Args:
-            f: Input source field [batch, spatial] or [batch, channels, spatial]
-            u: Ground truth solution (for training, optional)
-            return_latents: Whether to return latent codes
-            
-        Returns:
-            Dictionary containing:
-                - 'prediction': Predicted solution ũ
-                - 'z_f': Forward latent code (if return_latents)
-                - 'z_u': Reverse latent code (if return_latents and u provided)
-        """
         output = {}
         
         # Encode input: z_f = E_f(f)
@@ -139,13 +99,12 @@ class LRNFNO1d(nn.Module):
         # FNO backbone: f → v_K
         v_K = self.fno.backbone_forward(f)
         
-        # Latent bridge injection: v^latent = σ(MLP(v_K ⊕ Proj(z_f)))
+        # Latent bridge injection
         v_latent = self.latent_bridge(v_K, z_f)
         
-        # Output projection: ũ = Π(v^latent)
+        # Output projection
         u_pred = self.fno.project(v_latent)
         
-        # Squeeze output if needed
         if u_pred.shape[-1] == 1:
             u_pred = u_pred.squeeze(-1)
         
@@ -184,19 +143,6 @@ class LRNFNO2d(nn.Module):
         padding: int = 9,
         use_gated_bridge: bool = False,
     ):
-        """
-        Args:
-            in_channels: Input field channels
-            out_channels: Output solution channels
-            modes1: Fourier modes in first dimension
-            modes2: Fourier modes in second dimension
-            width: FNO hidden width
-            num_layers: Number of Fourier layers (K)
-            latent_dim: Latent space dimension (d_z)
-            encoder_channels: Hidden channels for encoders
-            padding: Padding for non-periodic domains
-            use_gated_bridge: Use gated latent bridge variant
-        """
         super().__init__()
         
         self.in_channels = in_channels
@@ -251,17 +197,6 @@ class LRNFNO2d(nn.Module):
         u: Optional[torch.Tensor] = None,
         return_latents: bool = True,
     ) -> Dict[str, torch.Tensor]:
-        """
-        Forward pass through LRN-FNO 2D.
-        
-        Args:
-            f: Input field [batch, height, width] or [batch, channels, height, width]
-            u: Ground truth solution (optional, for training)
-            return_latents: Whether to return latent codes
-            
-        Returns:
-            Dictionary with 'prediction', 'z_f', and optionally 'z_u'
-        """
         output = {}
         
         # Encode input
@@ -308,13 +243,6 @@ def create_lrn_fno(
 ) -> nn.Module:
     """
     Factory function to create LRN-FNO model.
-    
-    Args:
-        spatial_dim: 1 for 1D PDEs, 2 for 2D PDEs
-        **kwargs: Model configuration arguments
-        
-    Returns:
-        LRNFNO1d or LRNFNO2d model
     """
     if spatial_dim == 1:
         return LRNFNO1d(**kwargs)
