@@ -1,8 +1,5 @@
 """
 LRR-FNO Model Definitions.
-
-Latent Reciprocity Representation (LRR) implementation where the backbone
-features v_K are projected to align with the solution latent z_u.
 """
 
 import torch
@@ -15,10 +12,7 @@ from ..lrn.model import LRNFNO1d, LRNFNO2d
 
 class LRRFNO1d(LRNFNO1d):
     """
-    Latent Reciprocity Representation FNO (LRR-FNO) for 1D.
-    
-    Implements Latent Space Supervision where internal backbone features v_K
-    are projected and aligned with the solution latent z_u.
+    LRR-FNO 1D.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -66,24 +60,22 @@ class LRRFNO1d(LRNFNO1d):
         output['prediction'] = u_pred
         
         if return_latents:
-            # RETURN TRICK: return projected backbone features as z_f
-            # so the loss function aligns v_K with z_u.
-            output['z_f'] = z_v_K 
+            # z_v_k: Projected backbone features for latent supervision
+            # This aligns with z_u (solution latent) via InfoNCE loss
+            output['z_v_k'] = z_v_K
+            output['z_f'] = z_v_K  # Backward compatibility alias
             if z_u is not None:
                 output['z_u'] = z_u
             
-            # For logging or debugging, return real input latent
-            output['z_f_real'] = z_f_input 
+            # For debugging: real input encoder latent
+            output['z_f_input'] = z_f_input
             
         return output
 
 
 class LRRFNO2d(LRNFNO2d):
     """
-    Latent Reciprocity Representation FNO (LRR-FNO) for 2D.
-    
-    Implements Latent Space Supervision where internal backbone features v_K
-    are projected and aligned with the solution latent z_u.
+    LRR-FNO 2D.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -136,12 +128,14 @@ class LRRFNO2d(LRNFNO2d):
         output['prediction'] = u_pred
         
         if return_latents:
-            # RETURN TRICK: return projected backbone features as z_f
-            # so the loss function aligns v_K with z_u.
-            output['z_f'] = z_v_K
+            # z_v_k: Projected backbone features for latent supervision
+            # This aligns with z_u (solution latent) via InfoNCE loss
+            output['z_v_k'] = z_v_K
+            output['z_f'] = z_v_K  # Backward compatibility alias
             if z_u is not None:
                 output['z_u'] = z_u
             
-            output['z_f_real'] = z_f_input
+            # For debugging: real input encoder latent
+            output['z_f_input'] = z_f_input
             
         return output

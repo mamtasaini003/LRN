@@ -1,15 +1,6 @@
 """
-LRN-FNO Training Script
-
-Main training script for the Latent Reciprocity Network with FNO backbone.
-Implements the 3-stage curriculum training protocol:
-    - Stage I: Manifold Alignment (NCE only)
-    - Stage II: Hybrid Optimization (NCE + λ·MSE)
-    - Stage III: Autonomous Distillation (MSE only)
-
-Usage:
-    python train.py --config configs/default.yaml
-    python train.py --dataset burgers --epochs 100
+Training script for LRN-FNO.
+Implements the 3-stage curriculum (Alignment, Hybrid, Distillation).
 """
 
 import os
@@ -248,13 +239,10 @@ def main():
     print("\nStarting training...")
     history = trainer.train()
     
-    # Print final results
-    print("\n" + "="*60)
-    print("TRAINING COMPLETE")
-    print("="*60)
+    # Results
+    print(f"\nTraining complete.")
     print(f"Final test loss: {history['test_loss'][-1]:.6f}")
     print(f"Best test loss: {min(history['test_loss']):.6f}")
-    print(f"Checkpoints saved to: {args.checkpoint_dir}")
     
     return history
 

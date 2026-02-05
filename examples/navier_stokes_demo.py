@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.models import LRNFNO2d, FNO2d
 from src.losses import LRNLoss
 from src.data import NavierStokesDataset
-from src.utils import LRNTrainer, get_device
+from src.utils import Trainer, get_device
 
 
 def visualize_ns_predictions(model_fno, model_lrn, dataset, device='cpu', filename='ns_comparison.png'):
@@ -193,15 +193,14 @@ def compare_navier_stokes():
     
     loss_fn = LRNLoss(lambda_mse=1.0)
     
-    print("Training LRN-FNO (Curriculum: 30 + 80 + 40 = 150 epochs)...")
-    trainer = LRNTrainer(
+    print("Training LRN-FNO (2-Stage: 110 + 40 = 150 epochs)...")
+    trainer = Trainer(
         model=lrn,
         train_loader=train_loader,
         test_loader=test_loader,
         loss_fn=loss_fn,
-        stage1_epochs=30,
-        stage2_epochs=80,
-        stage3_epochs=40,
+        stage1_epochs=110,
+        stage2_epochs=40,
         device=str(device),
         checkpoint_dir='ns_checkpoints'
     )

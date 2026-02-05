@@ -35,7 +35,7 @@ def set_seed(seed=42):
 from src.models import LRNFNO2d, FNO2d
 from src.losses import LRNLoss
 from src.data import Burgers2dDataset
-from src.utils import LRNTrainerV2, get_device
+from src.utils import Trainer, get_device
 
 
 def visualize_burgers2d(model_fno, model_lrn, dataset, device='cpu', filename='burgers2d_comparison_v2.png'):
@@ -202,7 +202,7 @@ def compare_burgers2d_v2():
     # Stage 1: NCE + MSE combined (110 epochs)
     # Stage 2: MSE only fine-tuning (40 epochs)
     print("Training LRN-FNO V2 (2-Stage: 110 + 40 = 150 epochs)...")
-    trainer = LRNTrainerV2(
+    trainer = Trainer(
         model=lrn,
         train_loader=train_loader,
         test_loader=test_loader,

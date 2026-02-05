@@ -32,19 +32,14 @@ model:
 # Training Configuration
 # =============================================================================
 training:
-  # 3-Stage Curriculum Protocol
+  # 2-Stage Standard Protocol
   stage1:
-    epochs: 50            # Manifold alignment
-    lr: 0.001
-    description: "NCE only - train encoders E_f, E_u"
-  
-  stage2:
-    epochs: 100           # Hybrid optimization
+    epochs: 110           # Hybrid optimization
     lr: 0.001
     description: "NCE + λ·MSE - train all components"
   
-  stage3:
-    epochs: 50            # Autonomous distillation
+  stage2:
+    epochs: 40            # Autonomous distillation
     lr: 0.0001
     description: "MSE only - discard E_u, fine-tune"
   

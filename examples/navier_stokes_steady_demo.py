@@ -17,10 +17,10 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-from models.fno import FNO2d
-from models.lrn_fno import LRNFNO2d
+from models.components.fno import FNO2d
+from models.lrn.model import LRNFNO2d
 from losses.infonce import LRNLoss
-from utils.training import LRNTrainerV2
+from utils.training import Trainer
 from data.steady_state_datasets import NavierStokesSteadyDataset
 
 # Reproducibility
@@ -75,8 +75,8 @@ def main():
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=150)
     mse_loss = nn.MSELoss()
     
-    print("Training FNO for 20 epochs (quick validation)...")
-    for epoch in range(1, 101):
+    print("Training FNO for 150 epochs...")
+    for epoch in range(1, 151):
         fno.train()
         epoch_loss = 0.0
         for f, u in train_loader:
@@ -133,14 +133,14 @@ def main():
     train_loader_lrn = train_loader
     test_loader_lrn = test_loader
     
-    trainer = LRNTrainerV2(
+    trainer = Trainer(
         model=lrn_fno,
         loss_fn=lrn_loss_fn,
         train_loader=train_loader_lrn,
         test_loader=test_loader_lrn,
         device=device,
-        stage1_epochs=15,
-        stage2_epochs=5,
+        stage1_epochs=110,
+        stage2_epochs=40,
         stage1_lr=1e-3,
         stage2_lr=1e-4
     )

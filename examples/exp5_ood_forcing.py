@@ -27,12 +27,30 @@ from models.lrr.model import LRRFNO2d
 from losses.infonce import LRNLoss
 from data.gaot_datasets import get_gaot_grid_loaders
 
+# Publication-quality plot settings
+import matplotlib
+matplotlib.rcParams['font.family'] = 'serif'
+matplotlib.rcParams['font.size'] = 11
+matplotlib.rcParams['axes.labelsize'] = 12
+matplotlib.rcParams['savefig.dpi'] = 300
+matplotlib.rcParams['pdf.fonttype'] = 42
+
+# Colorblind-friendly palette
+COLORS = {
+    'fno': '#0072B2',
+    'lrr': '#009E73',
+    'improvement': '#E69F00',
+    'error': '#D55E00',
+}
+
 
 def set_seed(seed=42):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def get_device():
@@ -78,9 +96,11 @@ def train_lrr(model, loss_fn, train_loader, device, epochs):
             optimizer.zero_grad()
             output = model(c, u, return_latents=True)
             pred = output['prediction']
-            z_f, z_u = output.get('z_f'), output.get('z_u')
-            loss_dict = loss_fn(pred, u, z_f, z_u, stage=2)
-            loss_dict['total'].backward()
+            z_v_k = output.get('z_f')  # Projected backbone latent
+            z_u = output.get('z_u')    # Solution encoder latent
+            loss_dict = loss_fn(pred, u, z_v_k, z_u, stage=2)
+            loss = loss_dict['total']
+            loss.backward()
             optimizer.step()
         scheduler.step()
         if epoch % 10 == 0 or epoch == 1:
@@ -125,35 +145,45 @@ def evaluate(model, loader, device, is_lrr=False):
 
 
 def plot_ood_results(train_domain, test_domains, fno_results, lrr_results, save_path):
-    """Plot OOD generalization comparison."""
-    fig, ax = plt.subplots(figsize=(12, 6))
+    """Plot OOD generalization comparison - publication quality, no title."""
+    fig, ax = plt.subplots(figsize=(8, 4.5))
     
     x = np.arange(len(test_domains))
     width = 0.35
     
-    bars1 = ax.bar(x - width/2, fno_results, width, label='FNO', color='steelblue')
-    bars2 = ax.bar(x + width/2, lrr_results, width, label='LRR-FNO', color='coral')
+    bars1 = ax.bar(x - width/2, fno_results, width, label='FNO', 
+                   color=COLORS['fno'], edgecolor='black', linewidth=0.5)
+    bars2 = ax.bar(x + width/2, lrr_results, width, label='LRR-FNO', 
+                   color=COLORS['lrr'], edgecolor='black', linewidth=0.5)
     
-    ax.set_xlabel('Test Domain', fontsize=12)
-    ax.set_ylabel('Relative L2 Error', fontsize=12)
-    ax.set_title(f'OOD Generalization: Trained on {train_domain}', fontsize=14)
+    ax.set_xlabel('Test Domain')
+    ax.set_ylabel('Relative L2 Error')
     ax.set_xticks(x)
-    ax.set_xticklabels(test_domains, rotation=15, ha='right')
-    ax.legend()
-    ax.grid(axis='y', alpha=0.3)
+    ax.set_xticklabels(test_domains, rotation=25, ha='right', fontsize=9)
+    ax.legend(frameon=True, fancybox=False, edgecolor='black', fontsize=9, loc='upper right')
+    ax.grid(True, axis='y', alpha=0.3, linestyle='--')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     
     # Add improvement labels
     for i, (fno, lrr) in enumerate(zip(fno_results, lrr_results)):
         improvement = (fno - lrr) / fno * 100
+        color = COLORS['improvement'] if improvement > 0 else COLORS['error']
         ax.annotate(f'{improvement:+.1f}%', 
                    xy=(x[i] + width/2, lrr), 
-                   xytext=(0, 3), textcoords="offset points",
-                   ha='center', va='bottom', fontsize=9, color='green' if improvement > 0 else 'red')
+                   xytext=(0, 3), textcoords='offset points',
+                   ha='center', va='bottom', fontsize=8, color=color)
+    
+    # Mark in-distribution domain
+    if train_domain in test_domains:
+        id_idx = test_domains.index(train_domain)
+        ax.axvspan(id_idx - 0.45, id_idx + 0.45, alpha=0.12, color='gray')
     
     plt.tight_layout()
-    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.savefig(str(save_path).replace('.png', '.pdf'), bbox_inches='tight', facecolor='white')
     plt.close()
-    print(f"Saved: {save_path}")
+    print(f"Saved: {Path(save_path).stem} (png, pdf)")
 
 
 def run_experiment(train_dataset, test_datasets, epochs=50, max_samples=200, seed=42):
@@ -264,7 +294,7 @@ def run_experiment(train_dataset, test_datasets, epochs=50, max_samples=200, see
 def main():
     parser = argparse.ArgumentParser(description='Exp5: OOD Forcing Generalization')
     parser.add_argument('--train', type=str, default='dataset/Circle.nc')
-    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--max_samples', type=int, default=200)
     parser.add_argument('--seed', type=int, default=42)
     

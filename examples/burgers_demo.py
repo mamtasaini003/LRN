@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.models import LRNFNO1d, FNO1d
 from src.losses import LRNLoss, InfoNCELoss
 from src.data import BurgersDataset
-from src.utils import LRNTrainer, get_device, count_parameters
+from src.utils import Trainer, get_device, count_parameters
 
 
 def visualize_predictions(model, dataset, n_samples=4, device='cpu'):
@@ -162,15 +162,14 @@ def quick_demo():
     
     loss_fn = LRNLoss(lambda_mse=1.0, temperature=0.1)
     
-    print("\nQuick training demo (5 epochs per stage)...")
-    trainer = LRNTrainer(
+    print("\nQuick training demo (10 + 5 = 15 epochs)...")
+    trainer = Trainer(
         model=model,
         train_loader=train_loader,
         test_loader=test_loader,
         loss_fn=loss_fn,
-        stage1_epochs=5,
+        stage1_epochs=10,
         stage2_epochs=5,
-        stage3_epochs=5,
         device=str(device),
         checkpoint_dir='demo_checkpoints',
     )
@@ -221,8 +220,8 @@ def compare_fno_vs_lrn():
     mse_loss = nn.MSELoss()
     
     fno_losses = []
-    print("Training FNO for 100 epochs...")
-    for epoch in range(100):
+    print("Training FNO for 150 epochs...")
+    for epoch in range(150):
         fno.train()
         epoch_loss = 0
         for f, u in train_loader:
@@ -239,7 +238,7 @@ def compare_fno_vs_lrn():
         scheduler_fno.step()
         fno_losses.append(epoch_loss / len(train_loader))
         if (epoch + 1) % 10 == 0:
-            print(f"Epoch {epoch+1}/100, Loss: {fno_losses[-1]:.6f}")
+            print(f"Epoch {epoch+1}/150, Loss: {fno_losses[-1]:.6f}")
     
     # Train LRN-FNO
     print("\n--- Training LRN-FNO ---")
@@ -255,15 +254,14 @@ def compare_fno_vs_lrn():
     
     loss_fn = LRNLoss(lambda_mse=1.0, temperature=0.1)
     
-    print("Training LRN-FNO for 100 epochs (20+50+30)...")
-    trainer = LRNTrainer(
+    print("Training LRN-FNO for 150 epochs (110 + 40)...")
+    trainer = Trainer(
         model=lrn,
         train_loader=train_loader,
         test_loader=test_loader,
         loss_fn=loss_fn,
-        stage1_epochs=20,
-        stage2_epochs=50,
-        stage3_epochs=30,
+        stage1_epochs=110,
+        stage2_epochs=40,
         device=str(device),
         checkpoint_dir='comparison_checkpoints',
     )
@@ -315,8 +313,7 @@ def compare_fno_vs_lrn():
     plt.figure(figsize=(10, 5))
     plt.plot(fno_losses, label='Vanilla FNO', marker='')
     lrn_mse = lrn_history['mse_loss']
-    # Filter zeros from Stage 1 (Manifold Alignment)
-    # Stage 1 has 20 epochs where MSE is 0
+    # Filter zeros if any (Stage 1 usually has MSE > 0 in 2-stage)
     valid_mse = [x if x > 0 else np.nan for x in lrn_mse]
     
     plt.plot(valid_mse, label='LRN-FNO', alpha=0.9, linewidth=2)

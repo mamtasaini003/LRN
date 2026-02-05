@@ -31,12 +31,30 @@ from models.lrr.model import LRRFNO2d
 from losses.infonce import LRNLoss
 from data.gaot_datasets import get_gaot_grid_loaders
 
+# Publication-quality plot settings
+import matplotlib
+matplotlib.rcParams['font.family'] = 'serif'
+matplotlib.rcParams['font.size'] = 11
+matplotlib.rcParams['axes.labelsize'] = 12
+matplotlib.rcParams['savefig.dpi'] = 300
+matplotlib.rcParams['pdf.fonttype'] = 42
+
+# Colorblind-friendly palette
+COLORS = {
+    'fno': '#0072B2',
+    'lrr': '#009E73',
+    'z_f': '#0072B2',
+    'z_u': '#D55E00',
+}
+
 
 def set_seed(seed=42):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def get_device():
@@ -108,16 +126,15 @@ def extract_latents(model, loader, device, is_lrr=True):
     return z_f, z_u
 
 
-def plot_tsne_evolution(latents_history, save_path, title="Latent Space Evolution"):
+def plot_tsne_evolution(latents_history, save_path, title=""):
     """
     Plot t-SNE visualization of latent space evolution across epochs.
-    
-    latents_history: dict with keys as epoch numbers, values as (z_f, z_u) tuples
+    Publication quality, no main title.
     """
     epochs = sorted(latents_history.keys())
     n_epochs = len(epochs)
     
-    fig, axes = plt.subplots(1, n_epochs, figsize=(5*n_epochs, 5))
+    fig, axes = plt.subplots(1, n_epochs, figsize=(4*n_epochs, 4))
     if n_epochs == 1:
         axes = [axes]
     
@@ -125,51 +142,41 @@ def plot_tsne_evolution(latents_history, save_path, title="Latent Space Evolutio
         z_f, z_u = latents_history[epoch]
         
         if z_u is not None:
-            # Combine for joint t-SNE
             combined = np.vstack([z_f, z_u])
-            labels = ['z_f (backbone)']*len(z_f) + ['z_u (solution)']*len(z_u)
-            
             tsne = TSNE(n_components=2, random_state=42, perplexity=min(30, len(combined)-1))
             embedded = tsne.fit_transform(combined)
-            
             n_f = len(z_f)
             
             ax = axes[idx]
             ax.scatter(embedded[:n_f, 0], embedded[:n_f, 1], 
-                      c='blue', alpha=0.6, label='z_f (backbone)', s=30)
+                      c=COLORS['z_f'], alpha=0.6, label=r'$z_f$', s=25, edgecolors='white', linewidths=0.3)
             ax.scatter(embedded[n_f:, 0], embedded[n_f:, 1], 
-                      c='red', alpha=0.6, label='z_u (solution)', s=30)
-            ax.set_title(f'Epoch {epoch}')
-            ax.legend()
+                      c=COLORS['z_u'], alpha=0.6, label=r'$z_u$', s=25, marker='s', edgecolors='white', linewidths=0.3)
+            ax.set_xlabel(f'Epoch {epoch}')
+            ax.legend(fontsize=9, frameon=True, fancybox=False, edgecolor='black')
             ax.set_xticks([])
             ax.set_yticks([])
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
         else:
             ax = axes[idx]
             tsne = TSNE(n_components=2, random_state=42, perplexity=min(30, len(z_f)-1))
             embedded = tsne.fit_transform(z_f)
-            ax.scatter(embedded[:, 0], embedded[:, 1], c='blue', alpha=0.6, s=30)
-            ax.set_title(f'Epoch {epoch}')
+            ax.scatter(embedded[:, 0], embedded[:, 1], c=COLORS['z_f'], alpha=0.6, s=25)
+            ax.set_xlabel(f'Epoch {epoch}')
     
-    fig.suptitle(title, fontsize=14)
     plt.tight_layout()
-    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.savefig(str(save_path).replace('.png', '.pdf'), bbox_inches='tight', facecolor='white')
     plt.close()
-    print(f"Saved: {save_path}")
+    print(f"Saved: {Path(save_path).stem} (png, pdf)")
 
 
-def plot_latent_reps(z_f, z_u, save_path, title="Latent Representation", dataset_name=""):
+def plot_latent_reps(z_f, z_u, save_path, title="", dataset_name=""):
     """
     Plot publication-quality latent representation visualization.
-    
-    Creates a single t-SNE plot showing z_f and z_u alignment with:
-    - Proper styling for papers
-    - Clear legend and labels
-    - Connection lines between corresponding pairs
+    No title for research paper compatibility.
     """
-    import matplotlib
-    matplotlib.rcParams['font.family'] = 'serif'
-    matplotlib.rcParams['font.size'] = 12
-    
     # Combine for joint t-SNE
     combined = np.vstack([z_f, z_u])
     perplexity = min(30, len(combined) // 2 - 1)
@@ -181,54 +188,50 @@ def plot_latent_reps(z_f, z_u, save_path, title="Latent Representation", dataset
     z_f_embedded = embedded[:n]
     z_u_embedded = embedded[n:]
     
-    fig, ax = plt.subplots(figsize=(8, 7))
+    fig, ax = plt.subplots(figsize=(5, 4.5))
     
-    # Plot connection lines (faint) between corresponding pairs
+    # Connection lines
     for i in range(n):
         ax.plot([z_f_embedded[i, 0], z_u_embedded[i, 0]], 
                 [z_f_embedded[i, 1], z_u_embedded[i, 1]], 
-                'gray', alpha=0.2, linewidth=0.5, zorder=1)
+                color='gray', alpha=0.15, linewidth=0.5, zorder=1)
     
-    # Plot points
+    # Points
     scatter_f = ax.scatter(z_f_embedded[:, 0], z_f_embedded[:, 1], 
-                          c='#1f77b4', alpha=0.7, s=60, 
-                          label=r'$z_f$ (Backbone Features)', 
+                          c=COLORS['z_f'], alpha=0.7, s=50, 
+                          label=r'$z_f$ (Backbone)', 
                           edgecolors='white', linewidths=0.5, zorder=2)
     scatter_u = ax.scatter(z_u_embedded[:, 0], z_u_embedded[:, 1], 
-                          c='#d62728', alpha=0.7, s=60, 
-                          label=r'$z_u$ (Solution Encoding)', 
+                          c=COLORS['z_u'], alpha=0.7, s=50, 
+                          label=r'$z_u$ (Solution)', 
                           marker='s', edgecolors='white', linewidths=0.5, zorder=2)
     
-    ax.set_xlabel('t-SNE Dimension 1', fontsize=14)
-    ax.set_ylabel('t-SNE Dimension 2', fontsize=14)
-    ax.set_title(f'{title}\n{dataset_name}', fontsize=16, fontweight='bold')
-    ax.legend(loc='upper right', fontsize=11, framealpha=0.9)
-    
-    # Remove axis ticks but keep border
+    ax.set_xlabel('t-SNE Dimension 1')
+    ax.set_ylabel('t-SNE Dimension 2')
+    ax.legend(loc='upper right', frameon=True, fancybox=False, edgecolor='black', fontsize=9)
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.spines['top'].set_visible(True)
-    ax.spines['right'].set_visible(True)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     
-    # Add text annotation
+    # Cosine similarity annotation
     cosine_sim = np.mean(np.sum(
         (z_f / (np.linalg.norm(z_f, axis=1, keepdims=True) + 1e-8)) *
         (z_u / (np.linalg.norm(z_u, axis=1, keepdims=True) + 1e-8)), axis=1))
-    ax.text(0.02, 0.02, f'Cosine Similarity: {cosine_sim:.3f}', 
-            transform=ax.transAxes, fontsize=11, 
-            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+    ax.text(0.02, 0.02, f'Cosine Sim: {cosine_sim:.3f}', 
+            transform=ax.transAxes, fontsize=9, 
+            bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='gray', alpha=0.9))
     
     plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.savefig(save_path.replace('.png', '.pdf'), bbox_inches='tight')  # Also save as PDF
+    plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.savefig(save_path.replace('.png', '.pdf'), bbox_inches='tight', facecolor='white')
     plt.close()
-    print(f"Saved: {save_path}")
-    print(f"Saved: {save_path.replace('.png', '.pdf')}")
+    print(f"Saved: {Path(save_path).stem} (png, pdf)")
 
 
 def plot_spectral_comparison(fno_spectral, lrr_spectral, save_path):
-    """Plot spectral error comparison between FNO and LRR-FNO."""
-    fig, ax = plt.subplots(figsize=(8, 5))
+    """Plot spectral error comparison - publication quality, no title."""
+    fig, ax = plt.subplots(figsize=(4.5, 3.5))
     
     bands = ['Low', 'Mid', 'High']
     x = np.arange(len(bands))
@@ -237,54 +240,55 @@ def plot_spectral_comparison(fno_spectral, lrr_spectral, save_path):
     fno_vals = [fno_spectral['low'], fno_spectral['mid'], fno_spectral['high']]
     lrr_vals = [lrr_spectral['low'], lrr_spectral['mid'], lrr_spectral['high']]
     
-    bars1 = ax.bar(x - width/2, fno_vals, width, label='FNO', color='steelblue')
-    bars2 = ax.bar(x + width/2, lrr_vals, width, label='LRR-FNO', color='coral')
+    bars1 = ax.bar(x - width/2, fno_vals, width, label='FNO', 
+                   color=COLORS['fno'], edgecolor='black', linewidth=0.5)
+    bars2 = ax.bar(x + width/2, lrr_vals, width, label='LRR-FNO', 
+                   color=COLORS['lrr'], edgecolor='black', linewidth=0.5)
     
     ax.set_xlabel('Frequency Band')
-    ax.set_ylabel('RMSE')
-    ax.set_title('Spectral Error Profiling (fRMSE)')
+    ax.set_ylabel('fRMSE')
     ax.set_xticks(x)
     ax.set_xticklabels(bands)
-    ax.legend()
-    
-    # Add improvement percentages
-    for i, (f, l) in enumerate(zip(fno_vals, lrr_vals)):
-        improvement = (f - l) / f * 100
-        ax.annotate(f'{improvement:+.1f}%', 
-                   xy=(x[i] + width/2, l), 
-                   ha='center', va='bottom', fontsize=10, color='green')
+    ax.legend(frameon=True, fancybox=False, edgecolor='black', fontsize=9)
+    ax.grid(True, alpha=0.3, axis='y', linestyle='--')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     
     plt.tight_layout()
-    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.savefig(str(save_path).replace('.png', '.pdf'), bbox_inches='tight', facecolor='white')
     plt.close()
-    print(f"Saved: {save_path}")
+    print(f"Saved: {Path(save_path).stem} (png, pdf)")
 
 
 def plot_latent_alignment_metrics(alignment_history, save_path):
-    """Plot latent alignment metrics over training."""
+    """Plot latent alignment metrics - publication quality, no title."""
     epochs = list(alignment_history.keys())
     cosine_sims = [alignment_history[e]['cosine_sim'] for e in epochs]
     l2_distances = [alignment_history[e]['l2_distance'] for e in epochs]
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 3))
     
-    ax1.plot(epochs, cosine_sims, 'b-o', linewidth=2, markersize=6)
+    ax1.plot(epochs, cosine_sims, '-o', linewidth=1.8, markersize=5, color=COLORS['fno'])
     ax1.set_xlabel('Epoch')
     ax1.set_ylabel('Cosine Similarity')
-    ax1.set_title('z_f ↔ z_u Alignment (Cosine Similarity)')
-    ax1.grid(True, alpha=0.3)
+    ax1.grid(True, alpha=0.3, linestyle='--')
     ax1.set_ylim([0, 1])
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
     
-    ax2.plot(epochs, l2_distances, 'r-o', linewidth=2, markersize=6)
+    ax2.plot(epochs, l2_distances, '-s', linewidth=1.8, markersize=5, color=COLORS['lrr'])
     ax2.set_xlabel('Epoch')
     ax2.set_ylabel('L2 Distance')
-    ax2.set_title('z_f ↔ z_u Distance (L2)')
-    ax2.grid(True, alpha=0.3)
+    ax2.grid(True, alpha=0.3, linestyle='--')
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
     
     plt.tight_layout()
-    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.savefig(str(save_path).replace('.png', '.pdf'), bbox_inches='tight', facecolor='white')
     plt.close()
-    print(f"Saved: {save_path}")
+    print(f"Saved: {Path(save_path).stem} (png, pdf)")
 
 
 def compute_alignment_metrics(z_f, z_u):
@@ -332,9 +336,9 @@ def train_with_tracking(model, loss_fn, train_loader, test_loader, device,
             optimizer.zero_grad()
             output = model(c, u, return_latents=True)
             pred = output['prediction']
-            z_f = output.get('z_f')
-            z_u = output.get('z_u')
-            loss_dict = loss_fn(pred, u, z_f, z_u, stage=2)  # Stage 2 = NCE + MSE
+            z_v_k = output.get('z_f')  # Projected backbone latent
+            z_u = output.get('z_u')    # Solution encoder latent
+            loss_dict = loss_fn(pred, u, z_v_k, z_u, stage=2)  # Stage 2 = NCE + MSE
             loss = loss_dict['total']
             loss.backward()
             optimizer.step()
@@ -590,7 +594,7 @@ def run_experiment(nc_path, epochs=50, max_samples=150, seed=42):
 def main():
     parser = argparse.ArgumentParser(description='Exp2: Latent Analysis and Spectral Profiling')
     parser.add_argument('--dataset', type=str, default='dataset/Circle.nc')
-    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--max_samples', type=int, default=150)
     parser.add_argument('--seed', type=int, default=42)
     

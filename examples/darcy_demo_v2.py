@@ -35,7 +35,7 @@ def set_seed(seed=42):
 from src.models import LRNFNO2d, FNO2d
 from src.losses import LRNLoss
 from src.data import DarcyDataset
-from src.utils import LRNTrainerV2, get_device, count_parameters
+from src.utils import Trainer, get_device, count_parameters
 
 
 def visualize_predictions_2d(model_fno, model_lrn, dataset, device='cpu', filename='darcy_comparison_v2.png'):
@@ -190,7 +190,7 @@ def compare_darcy_v2():
     
     # V2: 2-stage training (110 + 40 = 150 epochs)
     print("Training LRN-FNO V2 (2-Stage: 110 + 40 = 150 epochs)...")
-    trainer = LRNTrainerV2(
+    trainer = Trainer(
         model=lrn,
         train_loader=train_loader,
         test_loader=test_loader,

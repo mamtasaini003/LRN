@@ -1,12 +1,6 @@
 """
 Training Utilities for LRN
-
-Implements the 3-stage curriculum training protocol:
-    - Stage I: Manifold Alignment (NCE only)
-    - Stage II: Hybrid Optimization (NCE + MSE)
-    - Stage III: Autonomous Distillation (MSE only, discard E_u)
-
-Also includes standard training utilities and learning rate scheduling.
+Supports multi-stage curriculum training.
 """
 
 import torch
@@ -35,7 +29,7 @@ except ImportError:
             pass
 
 
-class Trainer:
+class BaseTrainer:
     """
     Base trainer class for neural operators.
     """
@@ -92,24 +86,9 @@ class Trainer:
             self.history = checkpoint['history']
 
 
-class LRNTrainer(Trainer):
+class CurriculumTrainer(BaseTrainer):
     """
-    Trainer for LRN-FNO with 3-stage curriculum learning.
-    
-    Stage I: Manifold Alignment
-        - Train only encoders E_f, E_u
-        - Loss: L_NCE (contrastive only)
-        - Purpose: Establish bidirectional latent reciprocity
-    
-    Stage II: Hybrid Optimization
-        - Train all components: E_f, E_u, G_θ
-        - Loss: L_NCE + λ·L_MSE
-        - Purpose: Joint optimization of latent space and reconstruction
-    
-    Stage III: Autonomous Distillation
-        - Discard E_u, train E_f, G_θ
-        - Loss: L_MSE only
-        - Purpose: Prepare deployable forward model
+    Trainer for curriculum-based learning.
     """
     
     def __init__(
@@ -135,7 +114,7 @@ class LRNTrainer(Trainer):
             device=device,
             checkpoint_dir=checkpoint_dir,
         )
-        
+        # ... existing init code ...
         self.loss_fn = loss_fn
         self.stage1_epochs = stage1_epochs
         self.stage2_epochs = stage2_epochs
@@ -145,21 +124,29 @@ class LRNTrainer(Trainer):
         self.stage3_lr = stage3_lr
         self.log_interval = log_interval
         
-        # Extended history for LRN
+        # Extended history
         self.history.update({
             'nce_loss': [],
             'mse_loss': [],
             'accuracy': [],
             'stage': [],
         })
-    
+
     def _get_encoder_params(self):
-        """Get parameters for encoders only."""
+        """Get parameters for encoders only (and projection heads for LRR)."""
         params = []
         if hasattr(self.model, 'encoder_f'):
             params.extend(self.model.encoder_f.parameters())
         if hasattr(self.model, 'encoder_u') and self.model.encoder_u is not None:
             params.extend(self.model.encoder_u.parameters())
+        # For LRR models, include the projection head
+        if hasattr(self.model, 'vk_projection'):
+            params.extend(self.model.vk_projection.parameters())
+        if hasattr(self.model, 'fno') and hasattr(self.model, 'vk_projection'):
+             # Also include the backbone if we are effectively unfreezing it
+             params.extend(self.model.fno.parameters())
+        if hasattr(self.model, 'latent_bridge') and hasattr(self.model, 'vk_projection'):
+             params.extend(self.model.latent_bridge.parameters())
         return params
     
     def _get_all_params(self):
@@ -176,23 +163,31 @@ class LRNTrainer(Trainer):
     
     def _freeze_backbone(self, freeze: bool = True):
         """Freeze/unfreeze FNO backbone."""
+        # For LRR models, we generally WANT the backbone to learn during Stage 1 
+        # (Latent Supervision), or at least the interaction affects it.
+        # However, if we strictly follow the 'Manifold Alignment' (Stage 1), 
+        # it usually implies freezing the generator.
+        # BUT for LRR, 'v_K' comes from the backbone. If backbone is random, v_K is random.
+        # So we should probably NOT freeze backbone for LRR models in Stage 1?
+        # Let's assume if it has 'vk_projection', it's an LRR model and we should unfreeze.
+        is_lrr = hasattr(self.model, 'vk_projection')
+        
+        should_freeze = freeze
+        if is_lrr and freeze:
+            # We must NOT freeze backbone for LRR if we want v_K to align with z_u 
+            # effectively (assuming we want to shape v_K, not just map z_u to random v_K).
+            should_freeze = False
+
         if hasattr(self.model, 'fno'):
             for param in self.model.fno.parameters():
-                param.requires_grad = not freeze
+                param.requires_grad = not should_freeze
         if hasattr(self.model, 'latent_bridge'):
             for param in self.model.latent_bridge.parameters():
-                param.requires_grad = not freeze
+                param.requires_grad = not should_freeze
     
     def train_epoch(self, stage: int, display_stage: Optional[int] = None) -> Dict[str, float]:
         """
         Train for one epoch at specified stage.
-        
-        Args:
-            stage: Internal training stage (1, 2, or 3)
-            display_stage: Stage number to display in logs
-            
-        Returns:
-            Dictionary of average losses
         """
         self.model.train()
         
@@ -214,15 +209,15 @@ class LRNTrainer(Trainer):
             # Forward pass
             output = self.model(f, u, return_latents=True)
             prediction = output['prediction']
-            z_f = output.get('z_f')
-            z_u = output.get('z_u')
+            z_v_k = output.get('z_f')  # Projected backbone latent (for NCE alignment)
+            z_u = output.get('z_u')    # Solution encoder latent
             
             # Compute loss based on stage
             losses = self.loss_fn(
                 prediction=prediction,
                 target=u,
-                z_f=z_f,
-                z_u=z_u,
+                z_f=z_v_k,   # Pass projected backbone features
+                z_u=z_u,      # Pass solution latent
                 stage=stage,
             )
             
@@ -259,12 +254,6 @@ class LRNTrainer(Trainer):
     def evaluate(self, stage: int = 3) -> Dict[str, float]:
         """
         Evaluate model on test set.
-        
-        Args:
-            stage: Training stage (affects loss computation)
-            
-        Returns:
-            Dictionary of evaluation metrics
         """
         self.model.eval()
         
@@ -278,13 +267,13 @@ class LRNTrainer(Trainer):
             
             output = self.model(f, u, return_latents=True)
             prediction = output['prediction']
-            z_f = output.get('z_f')
-            z_u = output.get('z_u')
+            z_v_k = output.get('z_f')  # Projected backbone latent
+            z_u = output.get('z_u')    # Solution encoder latent
             
             losses = self.loss_fn(
                 prediction=prediction,
                 target=u,
-                z_f=z_f,
+                z_f=z_v_k,
                 z_u=z_u,
                 stage=stage,
             )
@@ -309,42 +298,27 @@ class LRNTrainer(Trainer):
     ) -> Dict[str, List[float]]:
         """
         Train for a complete stage.
-        
-        Args:
-            stage: Internal training stage (1, 2, or 3)
-            epochs: Number of epochs for this stage
-            lr: Learning rate for this stage
-            custom_header: Optional Custom header string to print
-            display_stage: Optional stage number to display
-            
-        Returns:
-            Training history for this stage
         """
-        d_stage = display_stage or stage
-        print(f"\n{'='*60}")
-        if custom_header:
-            print(custom_header)
+        if stage == 1:
+            print(f"STAGE 1: Alignment")
+        elif stage == 2:
+            print(f"STAGE 2: Hybrid")
         else:
-            print(f"STAGE {d_stage}: ", end="")
-            if stage == 1:
-                print("Manifold Alignment (NCE only)")
-            elif stage == 2:
-                print("Hybrid Optimization (NCE + MSE)")
-            else:
-                print("Autonomous Distillation (MSE only)")
-        
-        print(f"{'='*60}")
+            print(f"STAGE 3: Distillation")
         
         if stage == 1:
-            self.model.set_inference_mode(False) # Ensure encoders are active
+            if hasattr(self.model, 'set_inference_mode'):
+                self.model.set_inference_mode(False)
             self._freeze_backbone(True)
             params = self._get_encoder_params()
         elif stage == 2:
-            self.model.set_inference_mode(False) # Ensure encoders are active
+            if hasattr(self.model, 'set_inference_mode'):
+                self.model.set_inference_mode(False)
             self._freeze_backbone(False)
             params = self._get_all_params()
         else:
-            self.model.set_inference_mode(True)
+            if hasattr(self.model, 'set_inference_mode'):
+                self.model.set_inference_mode(True)
             params = self._get_stage3_params()
         
         self.optimizer = Adam(params, lr=lr)
@@ -410,9 +384,6 @@ class LRNTrainer(Trainer):
     def train(self) -> Dict[str, List[float]]:
         """
         Execute full 3-stage curriculum training.
-        
-        Returns:
-            Complete training history
         """
         print("\n" + "="*60)
         print("LATENT RECIPROCITY NETWORK - 3-STAGE CURRICULUM TRAINING")
@@ -442,19 +413,18 @@ class LRNTrainer(Trainer):
         
         return self.history
 
-
-class LRNTrainerV2(LRNTrainer):
+class Trainer(CurriculumTrainer):
     """
-    Version 2 Trainer for LRN-FNO with a simplified 2-stage curriculum.
+    Standard Trainer for Neural Operators.
+    
+    Implements a simplified 2-stage curriculum which is the recommended default.
     
     Stage 1: Combined Optimization (InfoNCE + MSE)
-        - Train all components: E_f, E_u, G_θ
-        - Loss: L_NCE + λ·L_MSE
+        - Train all components components.
         - Purpose: Jointly learn the latent manifold and the solution mapping.
     
     Stage 2: Autonomous Distillation (MSE only)
-        - Discard E_u, train E_f, G_θ
-        - Loss: L_MSE only
+        - Train forward model components only.
         - Purpose: Refine the forward model for inference.
     """
     
@@ -472,9 +442,9 @@ class LRNTrainerV2(LRNTrainer):
         checkpoint_dir: str = 'checkpoints_v2',
         log_interval: int = 10,
     ):
-        # We reuse the base LRNTrainer logic but only implement 2 stages.
-        # We map V2's Stage 1 -> Original Stage 2
-        # We map V2's Stage 2 -> Original Stage 3
+        # We reuse the base CurriculumTrainer logic but only implement 2 stages.
+        # Map V2/Standard Stage 1 -> Original Stage 2
+        # Map V2/Standard Stage 2 -> Original Stage 3
         super().__init__(
             model=model,
             train_loader=train_loader,
@@ -495,7 +465,7 @@ class LRNTrainerV2(LRNTrainer):
         Execute simplified 2-stage training.
         """
         print("\n" + "="*60)
-        print("LATENT RECIPROCITY NETWORK - VERSION 2 (2-STAGE TRAINING)")
+        print("TRAINER - 2-STAGE CURRICULUM")
         print("="*60)
         
         start_time = time.time()
@@ -511,9 +481,9 @@ class LRNTrainerV2(LRNTrainer):
             self.train_stage(stage=3, epochs=self.stage3_epochs, lr=self.stage3_lr, custom_header=header, display_stage=2)
         
         elapsed_time = time.time() - start_time
-        print(f"\nTotal training time (V2): {elapsed_time/60:.2f} minutes")
+        print(f"\nTotal training time: {elapsed_time/60:.2f} minutes")
         
-        self.save_checkpoint(self.checkpoint_dir / 'final_model_v2.pt')
+        self.save_checkpoint(self.checkpoint_dir / 'final_model.pt')
         return self.history
 
 

@@ -26,12 +26,28 @@ from losses.infonce import LRNLoss
 from data.gaot_datasets import GAOTGridDataset
 from torch.utils.data import DataLoader
 
+# Publication-quality plot settings
+import matplotlib
+matplotlib.rcParams['font.family'] = 'serif'
+matplotlib.rcParams['font.size'] = 11
+matplotlib.rcParams['axes.labelsize'] = 12
+matplotlib.rcParams['savefig.dpi'] = 300
+matplotlib.rcParams['pdf.fonttype'] = 42
+
+# Colorblind-friendly palette
+COLORS = {
+    'fno': '#0072B2',
+    'lrr': '#009E73',
+}
+
 
 def set_seed(seed=42):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def get_device():
@@ -117,9 +133,9 @@ def train_lrr(model, loss_fn, train_loader, device, epochs):
             optimizer.zero_grad()
             output = model(c, u, return_latents=True)
             pred = output['prediction']
-            z_f = output.get('z_f')
-            z_u = output.get('z_u')
-            loss_dict = loss_fn(pred, u, z_f, z_u, stage=2)
+            z_v_k = output.get('z_f')  # Projected backbone latent
+            z_u = output.get('z_u')    # Solution encoder latent
+            loss_dict = loss_fn(pred, u, z_v_k, z_u, stage=2)
             loss = loss_dict['total']
             loss.backward()
             optimizer.step()
@@ -172,8 +188,8 @@ def evaluate_at_resolution(model, loader, device, is_lrr=False):
 
 
 def plot_super_resolution_results(results, save_path):
-    """Plot super-resolution comparison."""
-    fig, ax = plt.subplots(figsize=(10, 6))
+    """Plot super-resolution comparison - publication quality, no title."""
+    fig, ax = plt.subplots(figsize=(5, 4))
     
     x = np.arange(2)
     width = 0.35
@@ -181,38 +197,35 @@ def plot_super_resolution_results(results, save_path):
     fno_vals = [results['fno_64'], results['fno_128']]
     lrr_vals = [results['lrr_64'], results['lrr_128']]
     
-    bars1 = ax.bar(x - width/2, fno_vals, width, label='FNO', color='steelblue')
-    bars2 = ax.bar(x + width/2, lrr_vals, width, label='LRR-FNO', color='coral')
+    bars1 = ax.bar(x - width/2, fno_vals, width, label='FNO', 
+                   color=COLORS['fno'], edgecolor='black', linewidth=0.5)
+    bars2 = ax.bar(x + width/2, lrr_vals, width, label='LRR-FNO', 
+                   color=COLORS['lrr'], edgecolor='black', linewidth=0.5)
     
-    ax.set_xlabel('Test Resolution', fontsize=12)
-    ax.set_ylabel('Relative L2 Error', fontsize=12)
-    ax.set_title('Zero-Shot Super-Resolution: FNO vs LRR-FNO\n(Trained on 64×64)', fontsize=14)
+    ax.set_xlabel('Test Resolution')
+    ax.set_ylabel('Relative L2 Error')
     ax.set_xticks(x)
-    ax.set_xticklabels(['64×64 (in-dist)', '128×128 (zero-shot)'])
-    ax.legend()
-    ax.grid(axis='y', alpha=0.3)
+    ax.set_xticklabels(['64×64\n(In-Dist)', '128×128\n(Zero-Shot)'])
+    ax.legend(frameon=True, fancybox=False, edgecolor='black', fontsize=9)
+    ax.grid(True, axis='y', alpha=0.3, linestyle='--')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     
     # Add value labels
-    for bars in [bars1, bars2]:
-        for bar in bars:
-            height = bar.get_height()
-            ax.annotate(f'{height:.4f}',
-                       xy=(bar.get_x() + bar.get_width() / 2, height),
-                       xytext=(0, 3), textcoords="offset points",
-                       ha='center', va='bottom', fontsize=10)
-    
-    # Add degradation rates
-    fno_deg = (results['fno_128'] - results['fno_64']) / results['fno_64'] * 100
-    lrr_deg = (results['lrr_128'] - results['lrr_64']) / results['lrr_64'] * 100
-    
-    ax.text(0.5, 0.95, f'Degradation: FNO {fno_deg:+.1f}% | LRR {lrr_deg:+.1f}%',
-           transform=ax.transAxes, ha='center', fontsize=11,
-           bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+    for bar in bars1:
+        height = bar.get_height()
+        ax.annotate(f'{height:.4f}', xy=(bar.get_x() + bar.get_width()/2, height),
+                   xytext=(0, 2), textcoords='offset points', ha='center', fontsize=9)
+    for bar in bars2:
+        height = bar.get_height()
+        ax.annotate(f'{height:.4f}', xy=(bar.get_x() + bar.get_width()/2, height),
+                   xytext=(0, 2), textcoords='offset points', ha='center', fontsize=9)
     
     plt.tight_layout()
-    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.savefig(str(save_path).replace('.png', '.pdf'), bbox_inches='tight', facecolor='white')
     plt.close()
-    print(f"Saved: {save_path}")
+    print(f"Saved: {Path(save_path).stem} (png, pdf)")
 
 
 def run_experiment(nc_path, epochs=50, max_samples=200, seed=42):
@@ -314,7 +327,7 @@ def run_experiment(nc_path, epochs=50, max_samples=200, seed=42):
 def main():
     parser = argparse.ArgumentParser(description='Exp3: Zero-Shot Super-Resolution')
     parser.add_argument('--dataset', type=str, default='dataset/Circle.nc')
-    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--max_samples', type=int, default=200)
     parser.add_argument('--seed', type=int, default=42)
     

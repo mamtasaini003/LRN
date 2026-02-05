@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.models import LRNFNO2d, FNO2d
 from src.losses import LRNLoss
 from src.data import Burgers2dDataset
-from src.utils import LRNTrainer, get_device
+from src.utils import CurriculumTrainer, get_device
 
 
 def visualize_burgers2d(model_fno, model_lrn, dataset, device='cpu', filename='burgers2d_comparison.png'):
@@ -185,7 +185,7 @@ def compare_burgers2d():
     loss_fn = LRNLoss(lambda_mse=1.0)
     
     print("Training LRN-FNO (Curriculum: 30 + 80 + 40 = 150 epochs)...")
-    trainer = LRNTrainer(
+    trainer = CurriculumTrainer(
         model=lrn,
         train_loader=train_loader,
         test_loader=test_loader,
