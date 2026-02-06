@@ -63,21 +63,41 @@ class BurgersDataset(Dataset):
             self._generate_synthetic(num_samples, resolution)
     
     def _load_from_file(self, data_path: str, train: bool, train_ratio: float):
-        """Load data from HDF5 file."""
-        with h5py.File(data_path, 'r') as f:
-            # Standard format: 'input' and 'output' or 'f' and 'u'
-            if 'input' in f:
-                inputs = torch.tensor(f['input'][:], dtype=torch.float32)
-                outputs = torch.tensor(f['output'][:], dtype=torch.float32)
+        """Load data from file (HDF5 or pt)."""
+        data_path = Path(data_path)
+        
+        if data_path.suffix == '.pt':
+            data = torch.load(data_path)
+            # Support {'x', 'y'} or {'input', 'output'}
+            if 'x' in data:
+                inputs = data['x']
+                outputs = data['y']
             else:
-                inputs = torch.tensor(f['f'][:], dtype=torch.float32)
-                outputs = torch.tensor(f['u'][:], dtype=torch.float32)
+                inputs = data['input']
+                outputs = data['output']
+        else:
+            with h5py.File(data_path, 'r') as f:
+                # Standard format: 'input' and 'output' or 'f' and 'u'
+                if 'input' in f:
+                    inputs = torch.tensor(f['input'][:], dtype=torch.float32)
+                    outputs = torch.tensor(f['output'][:], dtype=torch.float32)
+                else:
+                    inputs = torch.tensor(f['f'][:], dtype=torch.float32)
+                    outputs = torch.tensor(f['u'][:], dtype=torch.float32)
         
         # Split data
         n_total = inputs.shape[0]
         n_train = int(n_total * train_ratio)
         
-        if train:
+        # If loading from a pre-split file (e.g. burgers_train.pt), we might want to use all of it.
+        # Heuristic: if filename contains 'train' and train=True, use all.
+        # Or just rely on train_ratio being set to 1.0 by caller if needed.
+        # For backward compatibility, default logic applies if train_ratio != 1.0
+        
+        if train_ratio >= 0.999:
+             self.f = inputs
+             self.u = outputs
+        elif train:
             self.f = inputs[:n_train]
             self.u = outputs[:n_train]
         else:

@@ -16,9 +16,7 @@ class LRRFNO1d(LRNFNO1d):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Projection Head: GAP + MLP
-        # v_K from FNO1d is [B, S, W]
-        # Match FieldEncoder head capacity: Linear -> GELU -> Linear
+
         hidden_dim = 128
         self.vk_projection = nn.Sequential(
             nn.AdaptiveAvgPool1d(1),
@@ -36,10 +34,7 @@ class LRRFNO1d(LRNFNO1d):
     ) -> Dict[str, torch.Tensor]:
         output = {}
         
-        # Encode input z_f (still used for context injection)
-        z_f_input = self.encoder_f(f)
-        
-        # Encode solution if available
+        # Encode solution if available (for NCE loss target)
         z_u = None
         if u is not None and not self._inference_mode:
             z_u = self.encoder_u(u)
@@ -51,11 +46,17 @@ class LRRFNO1d(LRNFNO1d):
         v_K_perm = v_K.permute(0, 2, 1)
         z_v_K = self.vk_projection(v_K_perm) # [B, latent_dim]
         
-        # Latent bridge uses z_f_input (input context)
-        v_latent = self.latent_bridge(v_K, z_f_input)
+        # Latent bridge with ZERO context (no encoder_f dependency)
+        # This isolates the effect of latent supervision
+        batch_size = f.shape[0]
+        z_zero = torch.zeros(batch_size, self.latent_dim, device=f.device)
+        v_latent = self.latent_bridge(v_K, z_zero)
         
         # Output projection
         u_pred = self.fno.project(v_latent)
+        
+        # Permute to [B, C, L]
+        u_pred = u_pred.permute(0, 2, 1)
             
         output['prediction'] = u_pred
         
@@ -66,9 +67,6 @@ class LRRFNO1d(LRNFNO1d):
             output['z_f'] = z_v_K  # Backward compatibility alias
             if z_u is not None:
                 output['z_u'] = z_u
-            
-            # For debugging: real input encoder latent
-            output['z_f_input'] = z_f_input
             
         return output
 
@@ -99,10 +97,7 @@ class LRRFNO2d(LRNFNO2d):
     ) -> Dict[str, torch.Tensor]:
         output = {}
         
-        # Encode input z_f (for bridge context)
-        z_f_input = self.encoder_f(f)
-        
-        # Encode solution if available
+        # Encode solution if available (for NCE loss target)
         z_u = None
         if u is not None and not self._inference_mode:
             z_u = self.encoder_u(u)
@@ -114,10 +109,11 @@ class LRRFNO2d(LRNFNO2d):
         v_K_perm = v_K.permute(0, 3, 1, 2)
         z_v_K = self.vk_projection(v_K_perm)
         
-        # Latent bridge
-        # Normalize z_f_input before injection to ensure unit norm (consistent with NCE)
-        z_f_norm = F.normalize(z_f_input, dim=-1)
-        v_latent = self.latent_bridge(v_K, z_f_norm)
+        # Latent bridge with ZERO context (no encoder_f dependency)
+        # This isolates the effect of latent supervision
+        batch_size = f.shape[0]
+        z_zero = torch.zeros(batch_size, self.latent_dim, device=f.device)
+        v_latent = self.latent_bridge(v_K, z_zero)
         
         # Projection
         u_pred = self.fno.project(v_latent)
@@ -134,8 +130,5 @@ class LRRFNO2d(LRNFNO2d):
             output['z_f'] = z_v_K  # Backward compatibility alias
             if z_u is not None:
                 output['z_u'] = z_u
-            
-            # For debugging: real input encoder latent
-            output['z_f_input'] = z_f_input
             
         return output
