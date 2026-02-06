@@ -283,3 +283,5 @@ site/
 
 # Generated docs
 *.log
+
+baselines/*

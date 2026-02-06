@@ -126,6 +126,10 @@ class SymmetricInfoNCELoss(nn.Module):
         loss_backward = self.infonce(z_u, z_f)
         
         return (loss_forward + loss_backward) / 2
+    
+    def compute_accuracy(self, z_f: torch.Tensor, z_u: torch.Tensor) -> float:
+        """Delegate accuracy computation to base InfoNCELoss."""
+        return self.infonce.compute_accuracy(z_f, z_u)
 
 
 class LRNLoss(nn.Module):

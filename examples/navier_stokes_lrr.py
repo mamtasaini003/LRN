@@ -46,7 +46,7 @@ def main():
     parser.add_argument('--lambda_nce', type=float, default=0.01, help='NCE loss weight')
     parser.add_argument('--lambda_mse', type=float, default=10000.0, help='MSE loss weight')
     parser.add_argument('--width', type=int, default=32, help='Model width')
-    parser.add_argument('--epochs', type=int, default=150, help='Total epochs')
+    parser.add_argument('--epochs', type=int, default=200, help='Total epochs')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     
     args = parser.parse_args()
@@ -62,22 +62,35 @@ def main():
     print(f"Device: {device}")
     
     # Dataset
-    print("\nPreparing Steady-State Navier-Stokes Dataset...")
-    RESOLUTION = 64
-    N_TRAIN = 300
-    N_TEST = 100
+    print("\nPreparing Navier-Stokes Dataset (NeuralOperator)...")
+    from data.neuralop_loaders import create_neuralop_dataloaders
+    RESOLUTION = 128  # Standard NS resolution
     
-    train_dataset = NavierStokesSteadyDataset(resolution=RESOLUTION, num_samples=N_TRAIN, train=True)
-    test_dataset = NavierStokesSteadyDataset(resolution=RESOLUTION, num_samples=N_TEST, train=False)
-    
-    from torch.utils.data import DataLoader
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
+    try:
+        train_loader, test_loader, processor = create_neuralop_dataloaders(
+            dataset_name='navier_stokes',
+            n_train=args.n_train if hasattr(args, 'n_train') else 300,
+            n_test=args.n_test if hasattr(args, 'n_test') else 100,
+            batch_size=16,
+            test_batch_size=16,
+            resolution=RESOLUTION,
+            return_tuple_format=True,
+            encode_input=True # Normalize inputs for generalization
+        )
+    except Exception as e:
+        print(f"Failed to load NeuralOperator dataset: {e}")
+        print("Falling back to legacy NavierStokesSteadyDataset...")
+        from data.steady_state_datasets import NavierStokesSteadyDataset
+        train_dataset = NavierStokesSteadyDataset(resolution=64, num_samples=300, train=True)
+        test_dataset = NavierStokesSteadyDataset(resolution=64, num_samples=100, train=False)
+        from torch.utils.data import DataLoader
+        train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
     
     # --- Vanilla FNO ---
     print("\n--- Training Vanilla FNO ---")
     fno = FNO2d(
-        in_channels=1,
+        in_channels=1, # NeuralOp NS is 1 channel (vorticity)
         out_channels=1,
         modes1=12, modes2=12,
         width=args.width,
@@ -92,9 +105,14 @@ def main():
     for epoch in range(1, args.epochs+1):
         fno.train()
         epoch_loss = 0.0
-        for f, u in train_loader:
+        for batch in train_loader:
+            if isinstance(batch, dict):
+                f, u = batch['x'], batch['y']
+            else:
+                f, u = batch
+            
             f, u = f.to(device), u.to(device)
-            # Unsqueeze for single channel
+            # Unsqueeze for single channel if needed
             if f.dim() == 3: f = f.unsqueeze(1)
             if u.dim() == 3: u = u.unsqueeze(1)
             
@@ -112,7 +130,12 @@ def main():
     fno.eval()
     fno_errors = []
     with torch.no_grad():
-        for f, u in test_loader:
+        for batch in test_loader:
+            if isinstance(batch, dict):
+                f, u = batch['x'], batch['y']
+            else:
+                f, u = batch
+            
             f, u = f.to(device), u.to(device)
             if f.dim() == 3: f = f.unsqueeze(1)
             if u.dim() == 3: u = u.unsqueeze(1)
@@ -122,56 +145,54 @@ def main():
                 fno_errors.append(compute_relative_l2(pred[i], u[i]).item())
     fno_rel_l2 = np.mean(fno_errors)
     
-    # --- LRR-FNO ---
-    print("\n--- Training LRR-FNO (2-Stage) ---")
+    # --- LRR-FNO (Latent Supervision Only) ---
+    print("\n--- Training LRR-FNO (Latent Supervision Only) ---")
     set_seed(args.seed)
     
-    # Using the new LRRFNO2d class
-    lrr_fno = LRRFNO2d(
+    class LatentSupervisedFNO(LRRFNO2d):
+        """
+        LRR-FNO variant that ignores encoder_f context for prediction.
+        """
+        def forward(self, f, u=None, return_latents=True):
+            # Standard forward to get z_f_input (for shape) and v_K
+            output = super().forward(f, u, return_latents)
+            
+            # Re-run bridge with ZERO context to isolate NCE alignment effect
+            v_K = self.fno.backbone_forward(f)
+            z_f_input = self.encoder_f(f) 
+            z_zero = torch.zeros_like(z_f_input) # Zero context
+            
+            v_latent = self.latent_bridge(v_K, z_zero)
+            u_pred = self.fno.project(v_latent)
+            u_pred = u_pred.permute(0, 3, 1, 2)
+            
+            output['prediction'] = u_pred
+            return output
+
+    lrr_fno = LatentSupervisedFNO(
         in_channels=1,
         out_channels=1,
         modes1=12, modes2=12,
         width=args.width,
         num_layers=4,
-        latent_dim=64,
-        encoder_channels=[32, 64, 128],
+        latent_dim=128, # Increased capacity
+        encoder_channels=[16, 32, 64],
         use_gated_bridge=False
     ).to(device)
     
-    # Using LRR Loss with tuned lambda_nce
-    lrr_loss_fn = LRNLoss(temperature=0.1, lambda_mse=args.lambda_mse, lambda_nce=args.lambda_nce)
-    
-    # Calculate stage epochs (Standard 110/40 split for 150 total)
-    stage1_epochs = int(110/150 * args.epochs)
-    stage2_epochs = args.epochs - stage1_epochs
-    
-    # Using updated Trainer
-    # Wrapper for channels
-    class ChannelWrapper(torch.utils.data.Dataset):
-        def __init__(self, dataset):
-            self.dataset = dataset
-        def __len__(self):
-            return len(self.dataset)
-        def __getitem__(self, idx):
-            f, u = self.dataset[idx]
-            return f.unsqueeze(0), u.unsqueeze(0)
-    
-    train_dataset_wrapped = ChannelWrapper(train_dataset)
-    test_dataset_wrapped = ChannelWrapper(test_dataset)
-    
-    train_loader_wrapped = DataLoader(train_dataset_wrapped, batch_size=16, shuffle=True)
-    test_loader_wrapped = DataLoader(test_dataset_wrapped, batch_size=16, shuffle=False)
+    # Physics-First Loss Weights
+    loss_fn = LRNLoss(lambda_nce=0.001, lambda_mse=5.0, temperature=0.07, symmetric_nce=True)
     
     trainer = Trainer(
         model=lrr_fno,
-        loss_fn=lrr_loss_fn,
-        train_loader=train_loader_wrapped,
-        test_loader=test_loader_wrapped,
-        device=device,
-        stage1_epochs=stage1_epochs,
-        stage2_epochs=stage2_epochs,
+        train_loader=train_loader,
+        test_loader=test_loader,
+        loss_fn=loss_fn,
+        stage1_epochs=args.epochs, # Full training in Stage 1
+        stage2_epochs=0, # Disable distillation
         stage1_lr=1e-3,
-        stage2_lr=1e-4,
+        weight_decay=1e-4, # Regularization
+        device=str(device),
         checkpoint_dir='checkpoints_ns_lrr'
     )
     
@@ -181,8 +202,16 @@ def main():
     lrr_fno.eval()
     lrr_errors = []
     with torch.no_grad():
-        for f, u in test_loader_wrapped:
+        for batch in test_loader:
+            if isinstance(batch, dict):
+                f, u = batch['x'], batch['y']
+            else:
+                f, u = batch
+            
             f, u = f.to(device), u.to(device)
+            if f.dim() == 3: f = f.unsqueeze(1)
+            if u.dim() == 3: u = u.unsqueeze(1)
+            
             output = lrr_fno(f)
             pred = output['prediction']
             for i in range(pred.size(0)):
@@ -200,14 +229,23 @@ def main():
     Path('results/plots').mkdir(parents=True, exist_ok=True)
     
     with torch.no_grad():
-        f, u = next(iter(test_loader_wrapped))
+        batch = next(iter(test_loader))
+        if isinstance(batch, dict):
+            f, u = batch['x'], batch['y']
+        else:
+            f, u = batch
+            
         f, u = f.to(device), u.to(device)
+        if f.dim() == 3: f = f.unsqueeze(1)
+        if u.dim() == 3: u = u.unsqueeze(1)
+        
         fno_pred = fno(f)
         lrr_output = lrr_fno(f)
         lrr_pred = lrr_output['prediction']
     
     fig, axes = plt.subplots(1, 3, figsize=(12, 4))
     
+    # Show first sample
     for i, (label, data) in enumerate([('Ground Truth', u[0, 0].cpu()),
                                         ('FNO', fno_pred[0, 0].cpu()),
                                         ('LRR-FNO', lrr_pred[0, 0].cpu())]):
@@ -215,7 +253,7 @@ def main():
         axes[i].set_title(label)
         axes[i].axis('off')
     
-    fig.suptitle(f'Navier-Stokes (Steady) | FNO: {fno_rel_l2:.4f} | LRR: {lrr_rel_l2:.4f} | Δ={improvement:.2f}%')
+    fig.suptitle(f'Navier-Stokes | FNO: {fno_rel_l2:.4f} | LRR: {lrr_rel_l2:.4f} | Δ={improvement:.2f}%')
     plt.tight_layout()
     plt.savefig('results/plots/ns_lrr_steady_comparison.png', dpi=150)
     print("Plot saved to results/plots/ns_lrr_steady_comparison.png")

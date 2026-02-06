@@ -103,6 +103,7 @@ class CurriculumTrainer(BaseTrainer):
         stage1_lr: float = 1e-3,
         stage2_lr: float = 1e-3,
         stage3_lr: float = 1e-4,
+        weight_decay: float = 1e-4, # Default L2 regularization
         device: str = 'cuda' if torch.cuda.is_available() else 'cpu',
         checkpoint_dir: str = 'checkpoints',
         log_interval: int = 10,
@@ -122,6 +123,7 @@ class CurriculumTrainer(BaseTrainer):
         self.stage1_lr = stage1_lr
         self.stage2_lr = stage2_lr
         self.stage3_lr = stage3_lr
+        self.weight_decay = weight_decay
         self.log_interval = log_interval
         
         # Extended history
@@ -204,6 +206,12 @@ class CurriculumTrainer(BaseTrainer):
             f = f.to(self.device)
             u = u.to(self.device)
             
+            # Handle 1D data: ensure channel dimension exists [B, L] -> [B, 1, L]
+            if f.dim() == 2:
+                f = f.unsqueeze(1)
+            if u.dim() == 2:
+                u = u.unsqueeze(1)
+            
             self.optimizer.zero_grad()
             
             # Forward pass
@@ -265,6 +273,12 @@ class CurriculumTrainer(BaseTrainer):
             f = f.to(self.device)
             u = u.to(self.device)
             
+            # Handle 1D data: ensure channel dimension exists
+            if f.dim() == 2:
+                f = f.unsqueeze(1)
+            if u.dim() == 2:
+                u = u.unsqueeze(1)
+            
             output = self.model(f, u, return_latents=True)
             prediction = output['prediction']
             z_v_k = output.get('z_f')  # Projected backbone latent
@@ -321,7 +335,7 @@ class CurriculumTrainer(BaseTrainer):
                 self.model.set_inference_mode(True)
             params = self._get_stage3_params()
         
-        self.optimizer = Adam(params, lr=lr)
+        self.optimizer = Adam(params, lr=lr, weight_decay=self.weight_decay)
         self.scheduler = CosineAnnealingLR(self.optimizer, T_max=epochs)
         
         stage_history = {
@@ -438,6 +452,7 @@ class Trainer(CurriculumTrainer):
         stage2_epochs: int = 50,
         stage1_lr: float = 1e-3,
         stage2_lr: float = 1e-4,
+        weight_decay: float = 1e-4,
         device: str = 'cuda' if torch.cuda.is_available() else 'cpu',
         checkpoint_dir: str = 'checkpoints_v2',
         log_interval: int = 10,
@@ -455,6 +470,7 @@ class Trainer(CurriculumTrainer):
             stage3_epochs=stage2_epochs,
             stage2_lr=stage1_lr,
             stage3_lr=stage2_lr,
+            weight_decay=weight_decay,
             device=device,
             checkpoint_dir=checkpoint_dir,
             log_interval=log_interval,
