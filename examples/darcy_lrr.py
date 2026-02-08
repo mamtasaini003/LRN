@@ -58,24 +58,42 @@ def load_data(args):
     resolution = 32  # Standard resolution for this benchmark
     
     try:
-        return create_neuralop_dataloaders(
-            dataset_name='darcy',
-            n_train=args.n_train,
-            n_test=args.n_test,
-            batch_size=args.batch_size,
-            test_batch_size=args.batch_size,
-            resolution=resolution,
-            encode_output=True,
-            return_tuple_format=True,
-            encode_input=True
-        )
+        try:
+            return create_neuralop_dataloaders(
+                dataset_name='darcy',
+                n_train=args.n_train,
+                n_test=args.n_test,
+                batch_size=args.batch_size,
+                test_batch_size=args.batch_size,
+                resolution=resolution,
+                encode_output=True,
+                return_tuple_format=True,
+                encode_input=True
+            )
+        except Exception as e:
+            # If explicit count failed (and it wasn't just missing library), try loading all available
+            if "neuraloperator" in str(e) and "not installed" in str(e):
+                raise e
+                
+            if args.n_train is not None:
+                logger.warning(f"Failed to load {args.n_train} samples ({e}). Retrying with all available data...")
+                return create_neuralop_dataloaders(
+                    dataset_name='darcy',
+                    n_train=None,
+                    n_test=args.n_test,
+                    batch_size=args.batch_size,
+                    test_batch_size=args.batch_size,
+                    resolution=resolution,
+                    encode_output=True,
+                    return_tuple_format=True,
+                    encode_input=True
+                )
+            raise e
     except Exception as e:
         logger.warning(f"NeuralOperator loader failed ({e}). using synthetic fallback.")
-        # Helper to ensure [C, H, W] dims
-        def unsqueeze_transform(x, y):
-            if x.ndim == 2: x = x.unsqueeze(0)
-            if y.ndim == 2: y = y.unsqueeze(0)
-            return x, y
+        # Helper to ensure [C, H, W] dims (applied per-tensor)
+        def unsqueeze_transform(t):
+            return t.unsqueeze(0) if t.ndim == 2 else t
 
         train_dataset = DarcyDataset(
             resolution=resolution, num_samples=args.n_train, train=True,
@@ -103,8 +121,9 @@ def train_fno(args, device, train_loader, test_loader):
     ).to(device)
     
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.5)
     criterion = nn.MSELoss()
+    history = {'train': [], 'test': []}
     
     for epoch in range(1, args.epochs + 1):
         model.train()
@@ -125,10 +144,14 @@ def train_fno(args, device, train_loader, test_loader):
             train_loss += loss.item()
             
         scheduler.step()
+        avg_loss = train_loss / len(train_loader)
+        test_err = evaluate_model(model, test_loader, device)
+        history['train'].append(avg_loss)
+        history['test'].append(test_err)
         if epoch % 20 == 0:
-            logger.info(f"Epoch {epoch}/{args.epochs} | Loss: {train_loss/len(train_loader):.6f}")
+            logger.info(f"Epoch {epoch}/{args.epochs} | Loss: {avg_loss:.6f}")
 
-    return evaluate_model(model, test_loader, device), model
+    return test_err, model, history
 
 
 def train_lrr(args, device, train_loader, test_loader):
@@ -151,22 +174,29 @@ def train_lrr(args, device, train_loader, test_loader):
         symmetric_nce=True
     )
     
+    # Split epochs: majority for Hybrid (Stage 2), last 100 for Distillation (Stage 3)
+    distill_epochs = 100
+    hybrid_epochs = args.epochs - distill_epochs
+    
     trainer = Trainer(
         model=model,
         loss_fn=loss_fn,
         train_loader=train_loader,
         test_loader=test_loader,
         device=device,
-        stage1_epochs=args.epochs,
-        stage2_epochs=0,
+        stage1_epochs=hybrid_epochs,
+        stage2_epochs=distill_epochs,
         stage1_lr=1e-3,
-        weight_decay=1e-4,
-        checkpoint_dir='checkpoints_darcy'
+        stage2_lr=1e-4,
+        weight_decay=0.0,
+        checkpoint_dir='checkpoints_darcy',
+        scheduler_type='step',
+        scheduler_kwargs={'step_size': 100, 'gamma': 0.5}
     )
     
     trainer.train()
     model.eval()
-    return evaluate_model(model, test_loader, device, is_lrr=True), model
+    return evaluate_model(model, test_loader, device, is_lrr=True), model, trainer.history
 
 
 def evaluate_model(model, loader, device, is_lrr=False):
@@ -208,8 +238,8 @@ def plot_comparison(fno_model, lrr_model, loader, device, metrics):
     data = [y[0], fno_pred[0], lrr_pred[0]]
     
     for ax, title, img in zip(axes, titles, data):
-        im = ax.imshow(img.cpu(), cmap='viridis')
-        ax.set_title(title)
+        im = ax.imshow(img.cpu(), cmap='viridis', aspect='equal')
+        ax.set_aspect('equal', adjustable='box')
         ax.axis('off')
         plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         
@@ -217,20 +247,40 @@ def plot_comparison(fno_model, lrr_model, loader, device, metrics):
     imp = (fno_err - lrr_err) / fno_err * 100
     plt.suptitle(f"Darcy Flow | FNO: {fno_err:.4f} | LRR: {lrr_err:.4f} | Δ: {imp:.1f}%")
     
-    out_path = Path('results/plots/darcy_comparison.png')
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_dir = Path('results/plots/darcy')
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / 'comparison.png'
+
     plt.tight_layout()
     plt.savefig(out_path, dpi=150)
+    plt.close()
     logger.info(f"Comparison plot saved to {out_path}")
 
 
+def plot_loss_history(fno_history, lrr_history, out_dir):
+    """Plot convergence curves."""
+    plt.figure(figsize=(10, 6))
+    plt.plot(fno_history['train'], 'b--', label='FNO Train', alpha=0.5)
+    plt.plot(fno_history['test'], 'b-', label='FNO Test')
+    plt.plot(lrr_history['train_loss'], 'g--', label='LRR Train', alpha=0.5)
+    plt.plot(lrr_history['test_loss'], 'g-', label='LRR Test')
+    plt.yscale('log')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss / Error')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    out_path = out_dir / 'loss_curves.png'
+    plt.savefig(out_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    logger.info(f"Loss curves saved to {out_path}")
+
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--epochs', type=int, default=200, help='Training epochs')
+    parser.add_argument('--epochs', type=int, default=500, help='Training epochs')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size')
-    parser.add_argument('--width', type=int, default=64, help='Model width')
+    parser.add_argument('--width', type=int, default=32, help='Model width (d_v)')
     parser.add_argument('--n_train', type=int, default=1000, help='Training samples')
-    parser.add_argument('--n_test', type=int, default=100, help='Test samples')
+    parser.add_argument('--n_test', type=int, default=200, help='Test samples')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     
     args = parser.parse_args()
@@ -242,19 +292,23 @@ def main():
     # Load Data
     train_loader, test_loader, _ = load_data(args)
     
+    # Results Dir
+    out_dir = Path('results/plots/darcy/root')
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
     # Train Models
-    fno_err, fno_model = train_fno(args, device, train_loader, test_loader)
+    fno_err, fno_model, fno_hist = train_fno(args, device, train_loader, test_loader)
     logger.info(f"Baseline FNO Error: {fno_err:.4f}")
     
-    lrr_err, lrr_model = train_lrr(args, device, train_loader, test_loader)
+    lrr_err, lrr_model, lrr_hist = train_lrr(args, device, train_loader, test_loader)
     logger.info(f"LRR-FNO Error:      {lrr_err:.4f}")
     
     # Summary
     improvement = (fno_err - lrr_err) / fno_err * 100
-    logger.info(f"Final Improvement:  {improvement:.2f}%")
     
     # Visualize
     plot_comparison(fno_model, lrr_model, test_loader, device, (fno_err, lrr_err))
+    plot_loss_history(fno_hist, lrr_hist, out_dir)
 
 
 if __name__ == '__main__':

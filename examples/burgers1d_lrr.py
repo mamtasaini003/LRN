@@ -58,23 +58,40 @@ def load_data(args):
     resolution = 128
     
     try:
-        return create_neuralop_dataloaders(
-            dataset_name='burgers',
-            n_train=args.n_train,
-            n_test=args.n_test,
-            batch_size=args.batch_size,
-            test_batch_size=args.batch_size,
-            resolution=resolution,
-            return_tuple_format=True,
-            encode_input=True
-        )
+        try:
+            return create_neuralop_dataloaders(
+                dataset_name='burgers',
+                n_train=args.n_train,
+                n_test=args.n_test,
+                batch_size=args.batch_size,
+                test_batch_size=args.batch_size,
+                resolution=resolution,
+                return_tuple_format=True,
+                encode_input=True
+            )
+        except Exception as e:
+            # If explicit count failed (and it wasn't just missing library), try loading all available
+            if "neuraloperator" in str(e) and "not installed" in str(e):
+                raise e # Go to outer except for synthetic fallback
+            
+            if args.n_train is not None:
+                logger.warning(f"Failed to load {args.n_train} samples ({e}). Retrying with all available data...")
+                return create_neuralop_dataloaders(
+                    dataset_name='burgers',
+                    n_train=None, # Load all available
+                    n_test=args.n_test,
+                    batch_size=args.batch_size,
+                    test_batch_size=args.batch_size,
+                    resolution=resolution,
+                    return_tuple_format=True,
+                    encode_input=True
+                )
+            raise e
     except Exception as e:
         logger.warning(f"NeuralOperator loader failed ({e}). using synthetic fallback.")
-        # Helper to ensure [C, L] dims
-        def unsqueeze_transform(x, y):
-            if x.ndim == 1: x = x.unsqueeze(0)
-            if y.ndim == 1: y = y.unsqueeze(0)
-            return x, y
+        # Helper to ensure [C, L] dims (applied per-tensor)
+        def unsqueeze_transform(t):
+            return t.unsqueeze(0) if t.ndim == 1 else t
 
         train_dataset = BurgersDataset(
             resolution=resolution, num_samples=args.n_train, train=True,
@@ -100,8 +117,8 @@ def train_fno(args, device, train_loader, test_loader):
         modes=args.modes, width=args.width, num_layers=4
     ).to(device)
     
-    optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.5)
     criterion = nn.MSELoss()
     
     for epoch in range(1, args.epochs + 1):
@@ -125,10 +142,14 @@ def train_fno(args, device, train_loader, test_loader):
             train_loss += loss.item()
             
         scheduler.step()
+        avg_loss = train_loss / len(train_loader)
+        test_err = evaluate_model(model, test_loader, device)
+        history['train'].append(avg_loss)
+        history['test'].append(test_err)
         if epoch % 20 == 0:
-            logger.info(f"Epoch {epoch}/{args.epochs} | Loss: {train_loss/len(train_loader):.6f}")
+            logger.info(f"Epoch {epoch}/{args.epochs} | Loss: {avg_loss:.6f}")
 
-    return evaluate_model(model, test_loader, device), model
+    return test_err, model, history
 
 
 def train_lrr(args, device, train_loader, test_loader):
@@ -150,22 +171,30 @@ def train_lrr(args, device, train_loader, test_loader):
         symmetric_nce=True
     )
     
+    # Split epochs: majority for Hybrid (Stage 2), last 100 for Distillation (Stage 3)
+    # This aligns 500 total epochs with FNO for fairness.
+    distill_epochs = 100
+    hybrid_epochs = args.epochs - distill_epochs
+    
     trainer = Trainer(
         model=model,
         loss_fn=loss_fn,
         train_loader=train_loader,
         test_loader=test_loader,
         device=device,
-        stage1_epochs=args.epochs,
-        stage2_epochs=0,
+        stage1_epochs=hybrid_epochs,  # Maps to Stage 2 (Hybrid) in CurriculumTrainer
+        stage2_epochs=distill_epochs, # Maps to Stage 3 (Distillation) in CurriculumTrainer
         stage1_lr=1e-3,
-        weight_decay=1e-4,
-        checkpoint_dir='checkpoints_burgers'
+        stage2_lr=1e-4, # Lower LR for fine-tuning
+        weight_decay=0.0,
+        checkpoint_dir='checkpoints_burgers',
+        scheduler_type='step',
+        scheduler_kwargs={'step_size': 100, 'gamma': 0.5}
     )
     
     trainer.train()
     model.eval()
-    return evaluate_model(model, test_loader, device, is_lrr=True), model
+    return evaluate_model(model, test_loader, device, is_lrr=True), model, trainer.history
 
 
 def evaluate_model(model, loader, device, is_lrr=False):
@@ -191,44 +220,94 @@ def evaluate_model(model, loader, device, is_lrr=False):
 
 
 def plot_comparison(fno_model, lrr_model, loader, device, metrics):
-    """Visualize qualitative comparison."""
+    """Visualize qualitative comparison with Best/Median/Worst samples."""
+    fno_model.eval()
+    lrr_model.eval()
+    
+    all_x, all_y = [], []
+    all_fno_pred, all_lrr_pred = [], []
+    batch_errors_fno, batch_errors_lrr = [], []
+    
+    # Collect predictions from first batch
     x, y = next(iter(loader))
     x, y = x.to(device), y.to(device)
     if x.ndim == 2: x = x.unsqueeze(1)
     if y.ndim == 2: y = y.unsqueeze(1)
     
     with torch.no_grad():
-        fno_pred = fno_model(x)
-        if fno_pred.ndim == 3 and fno_pred.shape[-1] == 1:
-            fno_pred = fno_pred.permute(0, 2, 1)
-            
-        lrr_pred = lrr_model(x)['prediction']
+        # FNO Prediction
+        fno_out = fno_model(x)
+        if fno_out.ndim == 3 and fno_out.shape[-1] == 1:
+            fno_out = fno_out.permute(0, 2, 1)
         
-    # Plot first sample
-    y_plot = y[0, 0].cpu().numpy()
-    fno_plot = fno_pred[0, 0].cpu().numpy()
-    lrr_plot = lrr_pred[0, 0].cpu().numpy()
-
-    fno_err, lrr_err = metrics
-    imp = (fno_err - lrr_err) / fno_err * 100
+        # LRR Prediction
+        lrr_out = lrr_model(x)['prediction']
     
-    plt.figure(figsize=(10, 5))
-    plt.plot(y_plot, 'k-', label='Ground Truth', linewidth=2)
-    plt.plot(fno_plot, 'b--', label='Baseline FNO', alpha=0.8)
-    plt.plot(lrr_plot, 'g--', label='LRR-FNO', alpha=0.8)
-    plt.legend()
-    plt.title(f"Burgers 1D | FNO: {fno_err:.4f} | LRR: {lrr_err:.4f} | Δ: {imp:.1f}%")
-    plt.grid(True, alpha=0.3)
+    # Calculate sample-wise errors
+    for i in range(x.shape[0]):
+        # Relative L2 for this sample
+        err_fno = compute_relative_l2(fno_out[i:i+1], y[i:i+1])
+        err_lrr = compute_relative_l2(lrr_out[i:i+1], y[i:i+1])
+        batch_errors_lrr.append(err_lrr)
     
-    out_path = Path('results/plots/burgers_comparison.png')
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    batch_errors_lrr = np.array(batch_errors_lrr)
+    
+    # Select indices: Best, Median, Worst (based on LRR performance)
+    indices = [
+        np.argmin(batch_errors_lrr),              # Best
+        np.argsort(batch_errors_lrr)[len(batch_errors_lrr)//2], # Median
+        np.argmax(batch_errors_lrr)               # Worst
+    ]
+    titles = ['Best Case', 'Median Case', 'Worst Case']
+    
+    # Plotting
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+    fno_total, lrr_total = metrics
+    imp = (fno_total - lrr_total) / fno_total * 100
+    
+    for ax, idx, title in zip(axes, indices, titles):
+        y_true = y[idx, 0].cpu().numpy()
+        y_fno = fno_out[idx, 0].cpu().numpy()
+        y_lrr = lrr_out[idx, 0].cpu().numpy()
+        
+        ax.plot(y_true, 'k-', label='Ground Truth', linewidth=2)
+        ax.plot(y_fno, 'b--', label='FNO', alpha=0.7)
+        ax.plot(y_lrr, 'g-.', label='LRR (Ours)', alpha=0.9, linewidth=2)
+        
+        ax.grid(True, alpha=0.3)
+        if idx == indices[0]:
+            ax.legend()
+            
+    out_dir = Path('results/plots/burgers')
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / 'comparison_grid.png'
+    
+    plt.tight_layout()
     plt.savefig(out_path, dpi=150)
+    plt.close()
     logger.info(f"Comparison plot saved to {out_path}")
 
 
+def plot_loss_history(fno_history, lrr_history, out_dir):
+    """Plot convergence curves."""
+    plt.figure(figsize=(10, 6))
+    plt.plot(fno_history['train'], 'b--', label='FNO Train', alpha=0.5)
+    plt.plot(fno_history['test'], 'b-', label='FNO Test')
+    plt.plot(lrr_history['train_loss'], 'g--', label='LRR Train', alpha=0.5)
+    plt.plot(lrr_history['test_loss'], 'g-', label='LRR Test')
+    plt.yscale('log')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss / Error')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    out_path = out_dir / 'loss_curves.png'
+    plt.savefig(out_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    logger.info(f"Loss curves saved to {out_path}")
+
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--epochs', type=int, default=200, help='Training epochs')
+    parser.add_argument('--epochs', type=int, default=500, help='Training epochs')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size')
     parser.add_argument('--width', type=int, default=64, help='Model width')
     parser.add_argument('--modes', type=int, default=16, help='Fourier modes')
@@ -244,16 +323,14 @@ def main():
     
     train_loader, test_loader, _ = load_data(args)
     
-    fno_err, fno_model = train_fno(args, device, train_loader, test_loader)
-    logger.info(f"Baseline FNO Error: {fno_err:.4f}")
-    
-    lrr_err, lrr_model = train_lrr(args, device, train_loader, test_loader)
-    logger.info(f"LRR-FNO Error:      {lrr_err:.4f}")
-    
-    improvement = (fno_err - lrr_err) / fno_err * 100
-    logger.info(f"Final Improvement:  {improvement:.2f}%")
+    # Results Dir
+    out_dir = Path('results/plots/burgers/root')
+    out_dir.mkdir(parents=True, exist_ok=True)
     
     plot_comparison(fno_model, lrr_model, test_loader, device, (fno_err, lrr_err))
+    
+    # Check if fno_hist is a dict or a tuple from return
+    plot_loss_history(fno_hist, lrr_hist, out_dir)
 
 
 if __name__ == '__main__':
