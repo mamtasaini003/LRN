@@ -107,6 +107,8 @@ class CurriculumTrainer(BaseTrainer):
         device: str = 'cuda' if torch.cuda.is_available() else 'cpu',
         checkpoint_dir: str = 'checkpoints',
         log_interval: int = 10,
+        scheduler_type: str = 'cosine', # 'cosine' or 'step'
+        scheduler_kwargs: Optional[Dict] = None,
     ):
         super().__init__(
             model=model,
@@ -125,6 +127,8 @@ class CurriculumTrainer(BaseTrainer):
         self.stage3_lr = stage3_lr
         self.weight_decay = weight_decay
         self.log_interval = log_interval
+        self.scheduler_type = scheduler_type
+        self.scheduler_kwargs = scheduler_kwargs or {}
         
         # Extended history
         self.history.update({
@@ -336,7 +340,13 @@ class CurriculumTrainer(BaseTrainer):
             params = self._get_stage3_params()
         
         self.optimizer = Adam(params, lr=lr, weight_decay=self.weight_decay)
-        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=epochs)
+        
+        if self.scheduler_type == 'step':
+            step_size = self.scheduler_kwargs.get('step_size', 100)
+            gamma = self.scheduler_kwargs.get('gamma', 0.5)
+            self.scheduler = StepLR(self.optimizer, step_size=step_size, gamma=gamma)
+        else:
+            self.scheduler = CosineAnnealingLR(self.optimizer, T_max=epochs)
         
         stage_history = {
             'train_loss': [],
@@ -456,6 +466,8 @@ class Trainer(CurriculumTrainer):
         device: str = 'cuda' if torch.cuda.is_available() else 'cpu',
         checkpoint_dir: str = 'checkpoints_v2',
         log_interval: int = 10,
+        scheduler_type: str = 'cosine',
+        scheduler_kwargs: Optional[Dict] = None,
     ):
         # We reuse the base CurriculumTrainer logic but only implement 2 stages.
         # Map V2/Standard Stage 1 -> Original Stage 2
@@ -474,6 +486,8 @@ class Trainer(CurriculumTrainer):
             device=device,
             checkpoint_dir=checkpoint_dir,
             log_interval=log_interval,
+            scheduler_type=scheduler_type,
+            scheduler_kwargs=scheduler_kwargs,
         )
 
     def train(self) -> Dict[str, List[float]]:

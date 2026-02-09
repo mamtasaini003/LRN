@@ -24,6 +24,7 @@ class LRNFNO1d(nn.Module):
         latent_dim: int = 128,
         encoder_channels: List[int] = [16, 32, 64],
         use_gated_bridge: bool = False,
+        padding: int = 8,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -38,7 +39,8 @@ class LRNFNO1d(nn.Module):
             out_channels=out_channels,
             modes=modes,
             width=width,
-            num_layers=num_layers
+            num_layers=num_layers,
+            padding=padding
         )
         
         # Encoders
@@ -125,6 +127,7 @@ class LRNFNO2d(nn.Module):
         latent_dim: int = 128,
         encoder_channels: List[int] = [16, 32, 64],
         use_gated_bridge: bool = False,
+        padding: int = 9,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -141,7 +144,8 @@ class LRNFNO2d(nn.Module):
             modes1=modes1,
             modes2=modes2,
             width=width,
-            num_layers=num_layers
+            num_layers=num_layers,
+            padding=padding
         )
         
         # Encoders

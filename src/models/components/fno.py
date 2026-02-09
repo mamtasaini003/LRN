@@ -34,13 +34,13 @@ class SpectralConv1d(nn.Module):
         self.out_channels = out_channels
         self.modes = modes
         
-        # Scale for initialization
-        # FNO weights scale: 1 / (in * out) is often too small for randn
+        # Scale for initialization: 1 / (in * out) is standard for spectral weights
         scale = (1 / (in_channels * out_channels))
         
         # Complex weights for Fourier modes: R_k(ξ)
+        # Use randn for better distribution around zero
         self.weights = nn.Parameter(
-            scale * torch.rand(in_channels, out_channels, modes, dtype=torch.cfloat)
+            scale * torch.randn(in_channels, out_channels, modes, dtype=torch.cfloat)
         )
     
     def complex_mul1d(self, x: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
@@ -100,12 +100,13 @@ class SpectralConv2d(nn.Module):
         
         scale = (1 / (in_channels * out_channels))
         
-        # Complex weights for positive and negative frequency modes
+        # Complex weights for positive and negative frequency modes 
+        # Use randn for better distribution
         self.weights1 = nn.Parameter(
-            scale * torch.rand(in_channels, out_channels, modes1, modes2, dtype=torch.cfloat)
+            scale * torch.randn(in_channels, out_channels, modes1, modes2, dtype=torch.cfloat)
         )
         self.weights2 = nn.Parameter(
-            scale * torch.rand(in_channels, out_channels, modes1, modes2, dtype=torch.cfloat)
+            scale * torch.randn(in_channels, out_channels, modes1, modes2, dtype=torch.cfloat)
         )
     
     def complex_mul2d(self, x: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
