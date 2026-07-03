@@ -269,21 +269,21 @@ LRR-FNO beats FNO in both 2D tasks, with steady gain on Darcy, achieving $4\%$ o
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\linewidth]{results/burgers_1d/best_case.png}
+    \includegraphics[width=0.5\linewidth]{results/plots/burgers/two_stage/best_case.png}
     \caption{Burgers' equation ($\nu=0.1$) test prediction. Ground truth at $t=1$, FNO, LRR-FNO. Both trained mapping $u_0(x)$ to solution on 128-point grid (subsampled from $2^{13}$ reference solve). LRR-FNO better captures post-shock decay and oscillation fidelity.}
     \label{fig:burgers}
 \end{figure}
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\linewidth]{results/darcy_2d/comparison.png}
+    \includegraphics[width=0.5\linewidth]{results/plots/darcy/two_stage/comparison.png}
     \caption{Darcy flow test case. Permeability coefficient $a(x) \sim \psi_\# \mathcal{N}(0, (-\Delta + 9I)^{-2})$ (left, $\psi>0 \mapsto 12$, $<0 \mapsto 3$), FNO pressure prediction $\hat{u}$ (middle), LRR-FNO $\hat{u}$ (right) vs ground truth contours. Models map $a \mapsto u$ for fixed $f(x)=1$ on $64\times64$ (downsampled from $421\times421$ FD solve); LRR-FNO exhibits reduced overshoot in low-permeability channels.}
     \label{fig:darcy}
 \end{figure}
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\linewidth]{results/ns_2d/comparison.png}
+    \includegraphics[width=0.5\linewidth]{results/plots/navier_stokes/two_stage/comparison.png}
     \caption{Navier-Stokes vorticity evolution (forcing $f(x)=0.1[\sin 2\pi(x_1+x_2) + \cos 2\pi(x_1+x_2)]$, $w_0 \sim \mathcal{N}(0,7^{3/2}(-\Delta+49I)^{-2.5})$). Left: input vorticity/forcing. Middle: FNO prediction at fixed $T$. Right: LRR-FNO vs ground truth contours (pseudospectral $256\times256$ reference, $\Delta t=10^{-4}$, snapshot every $t=1$; trained $64\times64$). LRR-FNO preserves fine-scale vortices better.}
     \label{fig:ns}
 \end{figure}
@@ -296,7 +296,7 @@ To quantify this effect, we compare the latent representations of FNO and LRR-FN
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.7\textwidth]{results/latent_analysis_darcy/darcy_latent_tsne.pdf}
+\includegraphics[width=0.7\textwidth]{results/plots/darcy/two_stage/latent_tsne.pdf}
 \caption{Latent space alignment. Post-training cosine similarity between FNO backbone projections $z_v$ and GT latents $z_u$: 0.974 (vs untrained -0.010). InfoNCE drives strong semantic matching in 128D space ($n=9990$ test samples).}
 \label{fig:latent-align}
 \end{figure}
@@ -396,7 +396,7 @@ Semicircle BVP & 0.0564 & 0.0466 & +17.4 \\
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.5\linewidth]{results/exp1_plots/Circle_predictions.pdf}
+    \includegraphics[width=0.5\linewidth]{results/exp_1/Circle_predictions.pdf}
     \caption{Qualitative comparison on the Circle domain (Exp. 1). From left to right: Input source term, Ground Truth solution, FNO prediction, LRR-FNO prediction, and absolute error maps. LRR-FNO demonstrates sharper boundary adherence and lower error magnitudes.}
     \label{fig:placeholder}
 \end{figure}
@@ -408,7 +408,7 @@ Semicircle BVP & 0.0564 & 0.0466 & +17.4 \\
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\linewidth]{results/exp3_super_resolution/Circle_super_resolution.pdf}
+    \includegraphics[width=0.5\linewidth]{results/exp_3/Circle_super_resolution.pdf}
     \caption{Zero-shot super-resolution ($32\times32$ train, $64\times64$ eval). LRR-FNO (green) holds $L^2$ degradation to 134\% vs FNO's 194\% (blue); 29\% super-res gain reflects latent anchoring to resolution-independent physics.}
     \label{fig:super_resolution}
 \end{figure}
@@ -418,7 +418,7 @@ Adding 5\% Gaussian noise to permeability inputs at test time barely dents LRR-F
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.5\linewidth]{results/exp4_noise_robustness/Circle_noise_robustness.pdf}
+    \includegraphics[width=0.5\linewidth]{results/exp_4/Circle_noise_robustness.pdf}
     \caption{Noise robustness on circle domain ($\sigma=0$-0.5 forcing std). FNO error climbs steeply (blue), while LRR-FNO stays nearly flat (green)-gains swell to 34\% at high noise. Reciprocity denoises via physical manifold projection.}
     \label{fig:noise_robustness}
 \end{figure}
@@ -428,7 +428,7 @@ Circle-trained models face unseen elliptic/cone/semicircle geometries: LRR-FNO a
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.5\linewidth]{results/exp5_ood_forcing/Circle_ood_generalization.pdf}
+    \includegraphics[width=0.5\linewidth]{results/exp_5/Circle_ood_generalization.pdf}
     \caption{Circle-trained models on OOD test domains. Relative $L^2$ errors: LRR-FNO (green) consistently undercuts FNO (blue) by 8-39\%, with the largest margins on anisotropic ellipses. Latent reciprocity breaks geometry overfitting, yielding robust transfer.}
     \label{fig:ood_gen}
 \end{figure}
