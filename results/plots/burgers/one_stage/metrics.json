@@ -1,0 +1,14 @@
+{
+    "fno_error": 0.0018692885641939938,
+    "lrr_error": 0.0019653214840218425,
+    "improvement_percent": -5.137404768174809,
+    "config": {
+        "epochs": 500,
+        "batch_size": 32,
+        "width": 64,
+        "modes": 16,
+        "n_train": 1000,
+        "n_test": 200,
+        "seed": 42
+    }
+}

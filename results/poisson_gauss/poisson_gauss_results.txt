@@ -1,0 +1,7 @@
+LRR-FNO vs FNO on Poisson-Gauss
+Date: 2026-02-05 17:45
+Epochs: 200, Samples: 500
+
+FNO: 0.105350 ± 0.026319
+LRR-FNO: 0.105222 ± 0.025659
+Improvement: +0.12%

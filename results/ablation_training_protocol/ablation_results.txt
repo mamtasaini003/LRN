@@ -1,0 +1,6 @@
+Ablation: 1-Stage vs 2-Stage Training
+Date: 2026-02-05 15:08
+Epochs: 500, Samples: 200
+
+1-Stage (NCE+MSE): 0.099259
+2-Stage (NCE+MSE → MSE): 0.092813

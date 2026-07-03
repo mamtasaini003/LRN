@@ -1,0 +1,8 @@
+LRR-FNO Ablation Studies on Darcy Flow
+Date: 2026-02-05 21:36
+Epochs: 100, Train: 1000, Test: 200
+
+lrr_vs_fno:
+  FNO: 0.105885
+  LRR-FNO: 0.108952
+

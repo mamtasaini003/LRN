@@ -246,6 +246,10 @@ results/
 figures/
 plots/
 
+# Local dataset symlink (points to machine-specific external storage)
+datasets
+/datasets/
+
 # Cache directories
 .cache/
 cache/

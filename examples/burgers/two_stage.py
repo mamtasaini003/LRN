@@ -57,7 +57,7 @@ def load_data(args):
     
     try:
         try:
-            return create_neuralop_dataloaders(
+            loaders = create_neuralop_dataloaders(
                 dataset_name='burgers',
                 n_train=args.n_train,
                 n_test=args.n_test,
@@ -67,13 +67,15 @@ def load_data(args):
                 return_tuple_format=True,
                 encode_input=True
             )
+            logger.info(f"Loaded Burgers data via NeuralOperator (n_train={args.n_train}, resolution={resolution})")
+            return loaders
         except Exception as e:
             if "neuraloperator" in str(e) and "not installed" in str(e):
                 raise e 
             
             if args.n_train is not None:
                 logger.warning(f"Failed to load {args.n_train} samples ({e}). Retrying with all available data...")
-                return create_neuralop_dataloaders(
+                loaders = create_neuralop_dataloaders(
                     dataset_name='burgers',
                     n_train=None,
                     n_test=args.n_test,
@@ -83,9 +85,11 @@ def load_data(args):
                     return_tuple_format=True,
                     encode_input=True
                 )
+                logger.info(f"Loaded Burgers data via NeuralOperator (ALL available, resolution={resolution})")
+                return loaders
             raise e
     except Exception as e:
-        logger.warning(f"NeuralOperator loader failed ({e}). using synthetic fallback.")
+        logger.warning(f"NeuralOperator loader failed ({e}). Using SYNTHETIC fallback.")
         def unsqueeze_transform(t):
             return t.unsqueeze(0) if t.ndim == 1 else t
 
@@ -316,9 +320,11 @@ def main():
     
     train_loader, test_loader, _ = load_data(args)
     
+    set_seed(args.seed)  # Reset seed for reproducible FNO baseline
     fno_err, fno_model, fno_hist = train_fno(args, device, train_loader, test_loader)
     logger.info(f"Baseline FNO Error: {fno_err:.4f}")
     
+    set_seed(args.seed)  # Reset seed for reproducible LRR-FNO
     lrr_err, lrr_model, lrr_hist = train_lrr(args, device, train_loader, test_loader)
     logger.info(f"LRR-FNO Error:      {lrr_err:.4f}")
     

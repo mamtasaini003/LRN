@@ -1,0 +1,37 @@
+LRR-FNO Latent Space Supervision Experiment
+Date: 2026-02-02 14:19
+Epochs: 30, Max Samples: 150
+
+Dataset                        FNO          LRR-FNO      Improvement 
+----------------------------------------------------------------------
+Poisson Circle Domain          0.157104     0.088544     +43.64%
+Heat Conduction Cone           0.066316     0.056618     +14.62%
+Poisson Ellipse (AR=1.5)       0.041202     0.031752     +22.94%
+Poisson Ellipse (AR=2.0)       0.047980     0.038312     +20.15%
+Poisson Ellipse (AR=2.5)       0.039872     0.029895     +25.02%
+Forced Semicircle BVP          0.045593     0.037125     +18.57%
+
+Experiment Run: 2026-02-02 23:23
+Epochs: 500, Max Samples: -1
+Dataset                        FNO          LRR-FNO      Improvement 
+----------------------------------------------------------------------
+Poisson Circle Domain          0.243005     0.167068     +31.25%
+Heat Conduction Cone           0.245366     0.219690     +10.46%
+Poisson Ellipse (AR=1.5)       0.193025     0.179834     +6.83%
+
+Experiment Run: 2026-02-04 05:11
+Epochs: 100, Max Samples: 200
+Dataset                        FNO          LRR-FNO      Improvement 
+----------------------------------------------------------------------
+Poisson Circle Domain          0.115418     0.108803     +5.73%
+
+Experiment Run: 2026-02-04 05:26
+Epochs: 100, Max Samples: 200
+Dataset                        FNO          LRR-FNO      Improvement 
+----------------------------------------------------------------------
+Poisson Circle Domain          0.115418     0.108803     +5.73%
+Heat Conduction Cone           0.063345     0.058512     +7.63%
+Poisson Ellipse (AR=1.5)       0.024979     0.013405     +46.33%
+Poisson Ellipse (AR=2.0)       0.125056     0.108207     +13.47%
+Poisson Ellipse (AR=2.5)       0.025128     0.015133     +39.78%
+Forced Semicircle BVP          0.056437     0.046637     +17.36%

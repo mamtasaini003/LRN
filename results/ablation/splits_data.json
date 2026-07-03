@@ -1,0 +1,35 @@
+{
+    "fno_error": 0.0013201836729422212,
+    "ablation_results": [
+        {
+            "hybrid_epochs": 500,
+            "distill_epochs": 0,
+            "lrr_error": 0.0033170185983181,
+            "split_ratio": "500/0"
+        },
+        {
+            "hybrid_epochs": 450,
+            "distill_epochs": 50,
+            "lrr_error": 0.0030747516080737113,
+            "split_ratio": "450/50"
+        },
+        {
+            "hybrid_epochs": 400,
+            "distill_epochs": 100,
+            "lrr_error": 0.002890296233817935,
+            "split_ratio": "400/100"
+        },
+        {
+            "hybrid_epochs": 350,
+            "distill_epochs": 150,
+            "lrr_error": 0.002842734893783927,
+            "split_ratio": "350/150"
+        },
+        {
+            "hybrid_epochs": 250,
+            "distill_epochs": 250,
+            "lrr_error": 0.002762856986373663,
+            "split_ratio": "250/250"
+        }
+    ]
+}

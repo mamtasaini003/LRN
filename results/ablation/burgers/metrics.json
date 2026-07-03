@@ -1,0 +1,67 @@
+{
+    "fno_error": 0.010018659010529517,
+    "ablation_results": [
+        {
+            "hybrid_epochs": 500,
+            "distill_epochs": 0,
+            "lrr_error": 0.004547657817602158,
+            "split_ratio": "500/0"
+        },
+        {
+            "hybrid_epochs": 450,
+            "distill_epochs": 50,
+            "lrr_error": 0.0054542748257517815,
+            "split_ratio": "450/50"
+        },
+        {
+            "hybrid_epochs": 400,
+            "distill_epochs": 100,
+            "lrr_error": 0.005011815950274468,
+            "split_ratio": "400/100"
+        },
+        {
+            "hybrid_epochs": 350,
+            "distill_epochs": 150,
+            "lrr_error": 0.003780170250684023,
+            "split_ratio": "350/150"
+        },
+        {
+            "hybrid_epochs": 250,
+            "distill_epochs": 250,
+            "lrr_error": 0.0041968805715441706,
+            "split_ratio": "250/250"
+        },
+        {
+            "hybrid_epochs": 200,
+            "distill_epochs": 300,
+            "lrr_error": 0.004077364504337311,
+            "split_ratio": "200/300"
+        },
+        {
+            "hybrid_epochs": 150,
+            "distill_epochs": 350,
+            "lrr_error": 0.004096611961722374,
+            "split_ratio": "150/350"
+        },
+        {
+            "hybrid_epochs": 100,
+            "distill_epochs": 400,
+            "lrr_error": 0.0034308621659874918,
+            "split_ratio": "100/400"
+        },
+        {
+            "hybrid_epochs": 50,
+            "distill_epochs": 450,
+            "lrr_error": 0.00424763336777687,
+            "split_ratio": "50/450"
+        }
+    ],
+    "config": {
+        "epochs": 500,
+        "n_train": 1000,
+        "n_test": 200,
+        "batch_size": 32,
+        "width": 64,
+        "modes": 16
+    }
+}
